@@ -1,0 +1,11 @@
+build/
+
+venv/
+
+dist/
+
+*.ini
+
+__pycache/*
+
+*.sqlite
