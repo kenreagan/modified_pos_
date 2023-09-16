@@ -11,7 +11,7 @@ class OrderAbc:
         self.table = table
         self.price = price
         self.phone_number=phone_number
-        
+    
     def __repr__(self) -> str:
         return f'{self.__class__.__qualname__}(time={self.time!r}, customer_name={self.customer_name!r}, served_by={self.served_by!r}, table={self.table!r}, price={self.price!r}, phone={self.phone_no!r})'
 
