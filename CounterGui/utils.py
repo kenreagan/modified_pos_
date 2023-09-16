@@ -1,6 +1,8 @@
 from collections import deque
 import datetime
 from typing import Any,List
+import win32print
+import win32ui
 
 class OrderAbc:
     def __init__(self, time: datetime.datetime, customer_name: str, served_by: str, table: int,
@@ -99,4 +101,72 @@ class OrderQueue:
     
     def __len__(self) -> int:
         return len(self.orders)
+
+class Receipting:
+    def __init__(self, store_name, current_user):
+        self.store_name = store_name
+        self.current_user = current_user
+
+    def printReceipt(self, order_queue: OrderQueue):
+        printer_name = win32print.GetDefaultPrinter()
+        hprinter = win32print.OpenPrinter(printer_name)
+        printer_info = win32print.GetPrinter(hprinter, 2)
+
+        
+        printer_dc = win32ui.CreateDC()
+        printer_dc.CreatePrinterDC(printer_name)
+
+        
+        printer_dc.StartDoc('Receipt')
+        printer_dc.StartPage()
+        printer_dc.SetMapMode(win32con.MM_TWIPS)
+        printer_dc.SetTextAlign(win32con.TA_LEFT)
+        printer_dc.SetBkMode(win32con.TRANSPARENT)
+
+        
+        printer_dc.SelectObject(win32ui.CreateFont({
+            "name": "Arial",
+            "height": 24,
+        }))
+
+        
+        x, y = 100, 100  
+        line_height = 30
+
+        printer_dc.TextOut(x, y, "{:^50}".format(self.store_name))
+        y += line_height
+        printer_dc.TextOut(x, y, "DATE: {:<15} {:^15} {:<5}".format(
+            datetime.datetime.now().strftime("%D"), "TIME:",
+            datetime.datetime.now().strftime("%H:%M:%S")))
+        y += line_height
+        printer_dc.TextOut(x, y, "=" * 46)
+        y += line_height
+        printer_dc.TextOut(x, y, "{:<20s} {:<10s} {:>15s}".format("Name", "Quantity", "Price"))
+        y += line_height
+        printer_dc.TextOut(x, y, "=" * 46)
+
+        for order in order_queue.list_orders():
+            y += line_height
+            printer_dc.TextOut(x, y, "{:<20s} {:^10.2f} {:>15.2f}".format(order.customer_name[:20], order.quantity, order.price))
+
+        y += line_height
+        subtotal = order_queue.get_total_revenue()
+        tax_rate = 0.1
+        tax = subtotal * tax_rate
+        total = subtotal + tax
+
+        printer_dc.TextOut(x, y, "=" * 46)
+        y += line_height
+        printer_dc.TextOut(x, y, "SUBTOTAL: {:.2f}".format(subtotal))
+        y += line_height
+        printer_dc.TextOut(x, y, "TAX ({}%): {:.2f}".format(int(tax_rate * 100), tax))
+        y += line_height
+        printer_dc.TextOut(x, y, "TOTAL: {:.2f}".format(total))
+        y += line_height
+        printer_dc.TextOut(x, y, "SERVED BY: {}".format(self.current_user.upper()))
+
+    
+        printer_dc.EndPage()
+        printer_dc.EndDoc()
+        printer_dc.DeleteDC()
         
