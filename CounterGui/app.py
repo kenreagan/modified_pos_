@@ -135,7 +135,7 @@ class Main(tkinter.Tk):
         self.ordersPhoto = Image.open("icons/orders.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.ordersIcon = ImageTk.PhotoImage(self.ordersPhoto)
 
-        self.tablesButton = tkinter.Button(self.side_nav, width=7, image=self.ordersIcon, compound=tkinter.TOP, text="Orders", **self.buttonConfig)
+        self.tablesButton = tkinter.Button(self.side_nav, width=7, image=self.ordersIcon, compound=tkinter.TOP, text="Orders", **self.buttonConfig, command=self.viewOrders)
         self.tablesButton.grid(row=3, column=0, **self.sidenavConfig)
         
         self.reportPhoto = Image.open("icons/report.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
@@ -171,7 +171,7 @@ class Main(tkinter.Tk):
         self.coverLogo = ImageTk.PhotoImage(self.coverimage)
 
         self.labelIcon = tkinter.Label(self.midnav, image=self.coverLogo)
-        self.labelIcon.grid()
+        self.labelIcon.grid(padx=2)
 
         self.ordersFrame = tkinter.Frame(self.bottomFrame, relief=tkinter.RAISED)
         self.ordersFrame.grid(row=0, column=2, padx=20)
@@ -211,7 +211,7 @@ class Main(tkinter.Tk):
         self.orderTreeview = ttk.Treeview(self.ordersTreeviewFrame,
             style="Treeview",
             show="headings",
-            height=25,
+            height=23,
             columns=("Name", "Quantity", "Amount"),
         )
         self.orderTreeview.heading("Name", text="Name")
@@ -225,33 +225,81 @@ class Main(tkinter.Tk):
         # Order Details
         self.totalsFrame = tkinter.Frame(self.ordersFrame)
         self.totalsFrame.grid(row=2, column=0)
+
+        self.orderQuantity = tkinter.Label(self.totalsFrame, text="Quantity", font=("Arial", "10", "bold"))
+        self.orderQuantity.grid(row=0, column=0)
+
+        self.orderQuantityValues = tkinter.Label(self.totalsFrame, text="0", font=("Arial", "10", "bold"))
+        self.orderQuantityValues.grid(row=0, column=1)
+
+        ### Payment Method
+        self.paymentMethodFrame = tkinter.Frame(self.totalsFrame)
+        self.paymentMethodFrame.grid(row=0, column=2, pady=10)
+
+        self.cashpayLabel = tkinter.Label(self.paymentMethodFrame, text="Cash", font=("Arial", "10", "bold"))
+        self.cashpayLabel.grid(row=0, column=0)
+
+        self.cashInput= tkinter.Checkbutton(self.paymentMethodFrame)
+        self.cashInput.grid(row=0, column=1)
+
+        self.mpesaPayLabel = tkinter.Label(self.paymentMethodFrame, text="Mpesa", font=("Arial", "10", "bold"))
+        self.mpesaPayLabel.grid(row=0, column=2)
+
+        self.mpesaInput= tkinter.Checkbutton(self.paymentMethodFrame)
+        self.mpesaInput.grid(row=0, column=3)
+
+        ## Totals
+        self.subtotalsLabel = tkinter.Label(self.totalsFrame,text="Subtotal", font=("Arial", "10", "bold"))
+        self.subtotalsLabel.grid(row=1, column=0, padx=10)
+
+        self.subtotalsAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
+        self.subtotalsAmount.grid(row=1, column=1)
         
-        self.subtotalsLabel = tkinter.Label(self.totalsFrame,text="Subtotal", font=("Arial", "12", "bold"))
-        self.subtotalsLabel.grid(row=0, column=0, padx=10)
+        self.taxLabel = tkinter.Label(self.totalsFrame,text="Tax",font=("Arial", "10", "bold"))
+        self.taxLabel.grid(row=1, column=2)
 
-        self.subtotalsAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "12", "bold"))
-        self.subtotalsAmount.grid(row=0, column=1)
-        
-        self.taxLabel = tkinter.Label(self.totalsFrame,text="Tax",font=("Arial", "12", "bold"))
-        self.taxLabel.grid(row=0, column=2)
+        self.taxAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
+        self.taxAmount.grid(row=1, column=3, padx=20)
 
-        self.taxAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "12", "bold"))
-        self.taxAmount.grid(row=0, column=3, padx=20)
+        self.amountGivenEntry = tkinter.Label(self.totalsFrame, text="Amount", font=("Arial", "10", "bold"))
+        self.amountGivenEntry.grid(row=2, column=0)
 
-        self.payableLabel = tkinter.Label(self.totalsFrame,text="Total",font=("Arial", "12", "bold"))
-        self.payableLabel.grid(row=1, column=0)
+        self.AmountEntry = tkinter.Entry(self.totalsFrame)
+        self.AmountEntry.grid(row=2, column=1, ipady=2, padx=3)
 
-        self.payableAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "12", "bold"))
-        self.payableAmount.grid(row=1, column=1, padx=20)
+        self.payableLabel = tkinter.Label(self.totalsFrame,text="Total",font=("Arial", "10", "bold"))
+        self.payableLabel.grid(row=2, column=2)
+
+        self.payableAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
+        self.payableAmount.grid(row=2, column=3, padx=20)
 
         self.paymentFrame = tkinter.Frame(self.ordersFrame)
-        self.paymentFrame.grid(row=3, column=0)
+        self.paymentFrame.grid(row=3, column=0, pady=5)
 
-        self.holdButton = tkinter.Button(self.paymentFrame, text="Hold order", bg="#ff8000", width=30, border=0)
-        self.holdButton.grid(row=0, column=0, ipady=10)
+        # Functionality Buttons
+        self.printerImg = Image.open("icons/printer.png").resize((12, 12), resample=Image.LANCZOS)
+        self.printerIcon= ImageTk.PhotoImage(self.printerImg)
 
-        self.proceed = tkinter.Button(self.paymentFrame, text="Proceed", bg="green", width=30, border=0)
-        self.proceed.grid(row=0, column=1, ipady=10)
+        self.printButton = tkinter.Button(self.paymentFrame, image=self.printerIcon, compound=tkinter.LEFT, text="Print Receipt", bg="#ff5e00")
+        self.printButton.grid(row=0, column=0, ipady=8, ipadx=1)
+
+        self.payImage = Image.open("icons/receivecash.png").resize((12, 12), resample=Image.LANCZOS)
+        self.payIcon = ImageTk.PhotoImage(self.payImage)
+
+        self.proceed = tkinter.Button(self.paymentFrame, text="Get Balance", bg="#bfbfbf", image=self.payIcon, compound=tkinter.LEFT)
+        self.proceed.grid(row=0, column=1, ipady=8, ipadx=1)
+
+        self.queueImg = Image.open("icons/kitchenQueue.png").resize((12, 12),resample=Image.LANCZOS)
+        self.queueIcon = ImageTk.PhotoImage(self.queueImg)
+
+        self.holdButton = tkinter.Button(self.paymentFrame, text="Queue order", compound=tkinter.LEFT, image=self.queueIcon, bg="#2fff00")
+        self.holdButton.grid(row=0, column=2, ipady=8, ipadx=1)
+
+        self.cancelImg = Image.open("icons/cancel.png").resize((12, 12), resample=Image.LANCZOS)
+        self.cancelIcon= ImageTk.PhotoImage(self.cancelImg)
+
+        self.proceed = tkinter.Button(self.paymentFrame, image=self.cancelIcon, compound=tkinter.LEFT, text="Clear Entry", bg="#cfa3a7")
+        self.proceed.grid(row=0, column=3, ipady=8, ipadx=1)
 
     def load_home(self):
         for widgets in self.midnav.winfo_children():
@@ -355,6 +403,33 @@ class Main(tkinter.Tk):
 
         self.button_1 = tkinter.Button(self.products, text="15", **self.midButtonConfig)
         self.button_1.grid(row=2, column=4, **self.btnConfig)
+
+    def viewOrders(self):
+        for widgets in  self.midnav.winfo_children():
+            widgets.destroy()
+        
+        # Create Order view Frame
+        self.clientOrderTree= ttk.Treeview(self.midnav,show="headings", columns=(
+            "Date",
+            "Id",
+            "Quantity",
+            "Amount",
+            "Status",
+            "Payment"
+        ), style="Treeview", height=32)
+        self.clientOrderTree.heading("Date", text="Date")
+        self.clientOrderTree.column("Date", width=122)
+        self.clientOrderTree.heading("Quantity", text="Quantity")
+        self.clientOrderTree.column("Quantity", width=121)
+        self.clientOrderTree.heading("Amount", text="Amount")
+        self.clientOrderTree.column("Amount", width=124)
+        self.clientOrderTree.heading("Status", text="Status")
+        self.clientOrderTree.column("Status", width=121)
+        self.clientOrderTree.heading("Payment", text="Payment")
+        self.clientOrderTree.column("Payment", width=122)
+        self.clientOrderTree.heading("Id", text="Id")
+        self.clientOrderTree.column("Id", width=122)
+        self.clientOrderTree.grid(padx=10)
         
     def manageOrderQueue(self):
         for widgets in self.midnav.winfo_children():
@@ -380,6 +455,45 @@ class Main(tkinter.Tk):
         self.orderedQueueTree.grid(padx=10)
 
         ## Bind right click Event to toogle payment of the pending orders
+
+    def addItem(self, item_id):
+        pass
+        # Fetch the product with id
+
+        # Add item to order Queue
+
+        # Update the totals from the payment Frame
+
+    def printReceipt(self):
+        self.printer = win32print.OpenPrinter("E-PoS printer driver")                               
+        self.jobs = win32print.StartDocPrinter(self.printer, 1, (f"{BUSINESS_NAME}", None, "RAW"))
+        win32print.StartPagePrinter(self.printer)                                                   
+        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format(f"{BUSINESS_NAME}"), "utf-8"))
+        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("PAY BILL: 247 247 ACC No: 408904"), "utf-8"))    
+        win32print.WritePrinter(self.printer, bytes(" {:^50}\n".format("CASH SALE"), "utf-8"))      
+        win32print.WritePrinter(self.printer, bytes("DATE: {:<15} {:^15} {:<5}\n".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")), "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        win32print.WritePrinter(self.printer, bytes("{:20s} {:15s} {}\n".format("ITEM", "QTY", "AMT") , "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        
+        # Queue From utils
+        self.allOrders = self.orders.get_children()                                                 
+                                                                                                    
+        for i in range(len(self.allOrders)):                                                        
+            win32print.WritePrinter(self.printer, bytes(f"{self.orders.set(self.allOrders[i],0):20s} {self.orders.set(self.allOrders[i], 1):15s} {self.orders.set(self.allOrders[i],2)}\n", "utf-8"))
+                                                                                                    
+        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        win32print.WritePrinter(self.printer, bytes(f"\nTOTAL AMOUNT: {self.customerTotal: .2f}\n", "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"TOTAL QUANTITY: {float(self.quantityEntry.get()): .2f}\n", "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"AMOUNT PAID: {float(self.AmountGivenEntry.get()): .2f}\n", "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"BALANCE:  {self.balance: .2f} \n", "utf-8"))  
+        win32print.WritePrinter(self.printer, bytes(f"SERVED BY:  {CURRENT_USER.upper()} \n", "utf-8"))
+        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("TEL: 0742673703"), "utf-8")) 
+        win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
+        win32print.WritePrinter(self.printer, bytes("System by Mutable Tech: mutabletechke@gmail.com \n", "utf-8"))
+        win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
+        win32print.EndPagePrinter(self.printer)                                                     
+        win32print.WritePrinter(self.printer, b'\x1dV\x01')
 
     def run(self):
         self.mainloop()

@@ -6,6 +6,6 @@ dist/
 
 *.ini
 
-__pycache/*
+__pycache__/*
 
 *.sqlite
