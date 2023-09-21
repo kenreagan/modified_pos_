@@ -1,8 +1,8 @@
 from collections import deque
 import datetime
 from typing import Any,List
-import win32print
-import win32ui
+# import win32print
+# import win32ui
 
 class OrderAbc:
     def __init__(self, time: datetime.datetime, customer_name: str, served_by: str, table: int,
@@ -18,24 +18,28 @@ class OrderAbc:
         return f'{self.__class__.__qualname__}(time={self.time!r}, customer_name={self.customer_name!r}, served_by={self.served_by!r}, table={self.table!r}, price={self.price!r}, phone={self.phone_no!r})'
 
 
+class Product:
+    def __init__(self, name, quantity, price):
+        self.name = name
+        self.quantity = quantity
+        self.price = price
+
 class OrderQueue:
     def __init__(self):
-        self.orders = deque()
+        self.pendigorders = deque()
+        self.normalorders = deque()
         
-    
-    def add_order(self, order: OrderAbc):
+    def addPendingOrder(self, order):
         try:
-            existing_order =next((i for i in self.orders if i.phone_number == order.phone_number), None)
+            existing_order = next((i for i in self.pendingorders if i.phone_number == order.phone_number), None)
             if existing_order:
                 existing_order.price += order.price
             else:
                 self.orders.appendleft(order)
-        
         except Exception as e:
-            print(f"An error occurred while adding the order: {e}")
-            
+            print(f"An error occurred while adding the order: {e}")          
     
-    def delete_order(self, order:OrderAbc):
+    def delete_order(self, order):
         self.orders.remove(order)
     
     def find_order(self, phone_number: str) -> List[OrderAbc]:
@@ -102,12 +106,7 @@ class OrderQueue:
     def __len__(self) -> int:
         return len(self.orders)
 
-class Receipting:
-    def __init__(self, store_name, current_user):
-        self.store_name = store_name
-        self.current_user = current_user
-
-    def printReceipt(self, order_queue: OrderQueue):
+    def printReceipt(self):
         printer_name = win32print.GetDefaultPrinter()
         hprinter = win32print.OpenPrinter(printer_name)
         printer_info = win32print.GetPrinter(hprinter, 2)

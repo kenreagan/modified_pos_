@@ -1,10 +1,21 @@
 import tkinter
+from tkinter import messagebox
 import sys
 from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 from dotenv import load_dotenv
 import requests
+from utils import (
+    OrderAbc,
+    OrderQueue,
+    Product
+)
+import random
+import warnings
+
+
+warnings.filterwarnings("ignore")
 
 CONFIG_FILE_PATH = os.path.join(
         os.path.abspath(
@@ -17,6 +28,7 @@ CONFIG_FILE_PATH = os.path.join(
 load_dotenv(CONFIG_FILE_PATH)
 
 BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
+DEPARTMENT = os.environ.get("DEPARTMENT")
 CLIENT_IP = os.environ.get("CLIENT_IP")
 IMAGE_SZ = (15, 15)
 
@@ -38,9 +50,10 @@ class Main(tkinter.Tk):
             "border": 0,
             'relief': tkinter.FLAT,
             "highlightthickness": 0,
-            'bg': 'white'
+            'bg': 'white',
+            'takefocus': False
         }
-        
+        self.orderQueue = OrderQueue()
         self.startApp()
         # self.authenticateStaff()
 
@@ -111,7 +124,7 @@ class Main(tkinter.Tk):
         
         self.sidenavConfig = {
             'ipady': 10,
-            'ipadx': 20
+            'ipadx': 25
         }
 
         self.homePhoto = Image.open("icons/home.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
@@ -264,7 +277,7 @@ class Main(tkinter.Tk):
         self.amountGivenEntry = tkinter.Label(self.totalsFrame, text="Amount", font=("Arial", "10", "bold"))
         self.amountGivenEntry.grid(row=2, column=0)
 
-        self.AmountEntry = tkinter.Entry(self.totalsFrame)
+        self.AmountEntry = tkinter.Entry(self.totalsFrame, state=tkinter.DISABLED)
         self.AmountEntry.grid(row=2, column=1, ipady=2, padx=3)
 
         self.payableLabel = tkinter.Label(self.totalsFrame,text="Total",font=("Arial", "10", "bold"))
@@ -306,48 +319,40 @@ class Main(tkinter.Tk):
             widgets.destroy()
 
         self.categories = tkinter.Frame(self.midnav, bg="white")
-        self.categories.grid(row=0, column=0)
+        self.categories.grid(row=0, column=0, padx=15)
 
         ## Product Categories
-        configs = {
+        self.configs = {
             'ipady': 7,
-            'ipadx': 3
+            'ipadx': 48.4
         }
 
-        self.starters = tkinter.Button(self.categories, text="starter",**self.buttonConfig)
-        self.starters.grid(row=0, column=0, **configs)
-       
-        self.starters = tkinter.Button(self.categories, text="Breakfast", **self.buttonConfig)
-        self.starters.grid(row=0, column=1, **configs)
-        
-        self.starters = tkinter.Button(self.categories, text="Lunch",**self.buttonConfig)
-        self.starters.grid(row=0, column=2, **configs)
+        # Fetch subcategories from API
+        self.subcategories = requests.get(f"{CLIENT_IP}/subcategories")
+        # Display null buttons
+        for i in range(6):
+            exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
+            exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
 
-        self.starters = tkinter.Button(self.categories, text="Supper",**self.buttonConfig)
-        self.starters.grid(row=0, column=3, **configs)
+        if self.subcategories.status_code != 200:
+            messagebox.showerror("Error Fetching subcategories", "There was an error fetching the products")
+        else:
+            self.subcategoryFilter = self.subcategories.json().get("sucategories")
 
-        self.starters = tkinter.Button(self.categories, text="Deserts",**self.buttonConfig)
-        self.starters.grid(row=0, column=4, **configs)
+            #self.starters = tkinter.Button(self.categories, text="starter",**self.buttonConfig)
+            # self.starters.grid(row=0, column=0, **configs)
 
-        self.starters = tkinter.Button(self.categories, text="Drinks", **self.buttonConfig)
-        self.starters.grid(row=0, column=5, **configs)
-        
-        self.starters = tkinter.Button(self.categories, text="Beverages",**self.buttonConfig)
-        self.starters.grid(row=0, column=6, **configs)
+            for i in range(len(self.subcategoryFilter)):
+                exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
+                exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
+                exec("self.item_%d['text'] = t"%self.subcategoryFilter[i]['name'])
+                exec("self.item_%d['command'] = lambda: self.filterProducts(self.subcategoryFilter[i]['name'])"%i, {"__builtins__": {"self": self, "y": self.subcategoryFilter[i]['name']}})
+                exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
 
-        self.starters = tkinter.Button(self.categories, text="Beer", **self.buttonConfig)
-        self.starters.grid(row=0, column=7, **configs)
-
-        self.starters = tkinter.Button(self.categories, text="Wine",**self.buttonConfig)
-        self.starters.grid(row=0, column=8, **configs)
-
-        self.starters = tkinter.Button(self.categories, text="Spirits", **self.buttonConfig)
-        self.starters.grid(row=0, column=9, **configs)
         # buttonConfigs
-
         self.btnConfig = {
             'ipady': 81.1,
-            'ipadx': 47,
+            'ipadx': 53,
             'padx': 8,
             'pady': 10
         }
@@ -359,50 +364,31 @@ class Main(tkinter.Tk):
             'border': 0
         }
 
-        self.button_1 = tkinter.Button(self.products, text="1", **self.midButtonConfig)
-        self.button_1.grid(row=0, column=0, **self.btnConfig)
+        # Fetch the products from the business
+        # Create null pointer
+        for i in range(3):
+            for j in range(0, 5):
+                exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
+                exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
-        self.button_1 = tkinter.Button(self.products, text="2", **self.midButtonConfig)
-        self.button_1.grid(row=0, column=1, **self.btnConfig)
+        self.orderCommodities = requests.get(f"{CLIENT_IP}/products")
+        if self.orderCommodities.status_code != 200:
+            messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
+        else:
+            self.client_products = self.orderCommodities.json().get("products")
+            # Create Buttons
+            self.iteredProducts = list(zip(*[iter(self.client_products)]*5))
+            
+            for i in range(len(self.iteredProducts)):
+                for j in range(0, len(self.iteredProducts[i])):
+                    t = self.iteredProduts[i][j]["name"]
+                    y = self.iteredProducts[i][j]["id"]
 
-        self.button_1 = tkinter.Button(self.products, text="3", **self.midButtonConfig)
-        self.button_1.grid(row=0, column=2, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="4", **self.midButtonConfig)
-        self.button_1.grid(row=0, column=3, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="5", **self.midButtonConfig)
-        self.button_1.grid(row=0, column=4, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="6", **self.midButtonConfig)
-        self.button_1.grid(row=1, column=0, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="7", **self.midButtonConfig)
-        self.button_1.grid(row=1, column=1, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="8", **self.midButtonConfig)
-        self.button_1.grid(row=1, column=2, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="9", **self.midButtonConfig)
-        self.button_1.grid(row=1, column=3, **self.btnConfig)
-        
-        self.button_1 = tkinter.Button(self.products, text="10", **self.midButtonConfig)
-        self.button_1.grid(row=1, column=4, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="11", **self.midButtonConfig)
-        self.button_1.grid(row=2, column=0, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="12", **self.midButtonConfig)
-        self.button_1.grid(row=2, column=1, **self.btnConfig)
-        
-        self.button_1 = tkinter.Button(self.products, text="13",**self.midButtonConfig)
-        self.button_1.grid(row=2, column=2, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="14", **self.midButtonConfig)
-        self.button_1.grid(row=2, column=3, **self.btnConfig)
-
-        self.button_1 = tkinter.Button(self.products, text="15", **self.midButtonConfig)
-        self.button_1.grid(row=2, column=4, **self.btnConfig)
+                    exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
+                    exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
+                    exec("self.item_%d['text'] = t"%i)
+                    exec("self.item_%d['command'] = lambda: self.addItem(y)"%i, {"__builtins__": {"self": self, "y": y}})
+                    exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
     def viewOrders(self):
         for widgets in  self.midnav.winfo_children():
@@ -430,6 +416,9 @@ class Main(tkinter.Tk):
         self.clientOrderTree.heading("Id", text="Id")
         self.clientOrderTree.column("Id", width=122)
         self.clientOrderTree.grid(padx=10)
+
+    def subcategoryFilter(self, category: str):
+        pass
         
     def manageOrderQueue(self):
         for widgets in self.midnav.winfo_children():
@@ -457,43 +446,49 @@ class Main(tkinter.Tk):
         ## Bind right click Event to toogle payment of the pending orders
 
     def addItem(self, item_id):
-        pass
         # Fetch the product with id
-
+        req = requests.get(f"{CLIENT_IP}/{BUSINESS_NAME}/product/{item_id}")
+        if req.status_code == 200:
+            order_item =  req.json()
         # Add item to order Queue
-
+        order = OrderAbc(**order_item)
+        self.orderQueue.add_order(order)
         # Update the totals from the payment Frame
 
+        for items in self.order_queue:
+            self.orderTreeview.insert(0, (items['name'], items['quantity'], items['amount']))
+
     def printReceipt(self):
-        self.printer = win32print.OpenPrinter("E-PoS printer driver")                               
-        self.jobs = win32print.StartDocPrinter(self.printer, 1, (f"{BUSINESS_NAME}", None, "RAW"))
-        win32print.StartPagePrinter(self.printer)                                                   
-        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format(f"{BUSINESS_NAME}"), "utf-8"))
-        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("PAY BILL: 247 247 ACC No: 408904"), "utf-8"))    
-        win32print.WritePrinter(self.printer, bytes(" {:^50}\n".format("CASH SALE"), "utf-8"))      
-        win32print.WritePrinter(self.printer, bytes("DATE: {:<15} {:^15} {:<5}\n".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")), "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
-        win32print.WritePrinter(self.printer, bytes("{:20s} {:15s} {}\n".format("ITEM", "QTY", "AMT") , "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        self.orderQueue.printReceipt(BUSINESS_NAME)
+        # self.printer = win32print.OpenPrinter("E-PoS printer driver")                               
+        # self.jobs = win32print.StartDocPrinter(self.printer, 1, (f"{BUSINESS_NAME}", None, "RAW"))
+        # win32print.StartPagePrinter(self.printer)                                                   
+        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format(f"{BUSINESS_NAME}"), "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("PAY BILL: 247 247 ACC No: 408904"), "utf-8"))    
+        # win32print.WritePrinter(self.printer, bytes(" {:^50}\n".format("CASH SALE"), "utf-8"))      
+        # win32print.WritePrinter(self.printer, bytes("DATE: {:<15} {:^15} {:<5}\n".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")), "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        # win32print.WritePrinter(self.printer, bytes("{:20s} {:15s} {}\n".format("ITEM", "QTY", "AMT") , "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
         
-        # Queue From utils
-        self.allOrders = self.orders.get_children()                                                 
+        # # Queue From utils
+        # self.allOrders = self.orders.get_children()                                                 
                                                                                                     
-        for i in range(len(self.allOrders)):                                                        
-            win32print.WritePrinter(self.printer, bytes(f"{self.orders.set(self.allOrders[i],0):20s} {self.orders.set(self.allOrders[i], 1):15s} {self.orders.set(self.allOrders[i],2)}\n", "utf-8"))
+        # for i in range(len(self.allOrders)):                                                        
+        #     win32print.WritePrinter(self.printer, bytes(f"{self.orders.set(self.allOrders[i],0):20s} {self.orders.set(self.allOrders[i], 1):15s} {self.orders.set(self.allOrders[i],2)}\n", "utf-8"))
                                                                                                     
-        win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
-        win32print.WritePrinter(self.printer, bytes(f"\nTOTAL AMOUNT: {self.customerTotal: .2f}\n", "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"TOTAL QUANTITY: {float(self.quantityEntry.get()): .2f}\n", "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"AMOUNT PAID: {float(self.AmountGivenEntry.get()): .2f}\n", "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"BALANCE:  {self.balance: .2f} \n", "utf-8"))  
-        win32print.WritePrinter(self.printer, bytes(f"SERVED BY:  {CURRENT_USER.upper()} \n", "utf-8"))
-        win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("TEL: 0742673703"), "utf-8")) 
-        win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
-        win32print.WritePrinter(self.printer, bytes("System by Mutable Tech: mutabletechke@gmail.com \n", "utf-8"))
-        win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
-        win32print.EndPagePrinter(self.printer)                                                     
-        win32print.WritePrinter(self.printer, b'\x1dV\x01')
+        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
+        # win32print.WritePrinter(self.printer, bytes(f"\nTOTAL AMOUNT: {self.customerTotal: .2f}\n", "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"TOTAL QUANTITY: {float(self.quantityEntry.get()): .2f}\n", "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"AMOUNT PAID: {float(self.AmountGivenEntry.get()): .2f}\n", "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"BALANCE:  {self.balance: .2f} \n", "utf-8"))  
+        # win32print.WritePrinter(self.printer, bytes(f"SERVED BY:  {CURRENT_USER.upper()} \n", "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("TEL: 0742673703"), "utf-8")) 
+        # win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
+        # win32print.WritePrinter(self.printer, bytes("System by Mutable Tech: mutabletechke@gmail.com \n", "utf-8"))
+        # win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
+        # win32print.EndPagePrinter(self.printer)                                                     
+        # win32print.WritePrinter(self.printer, b'\x1dV\x01')
 
     def run(self):
         self.mainloop()
