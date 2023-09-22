@@ -13,7 +13,8 @@ from utils import (
 )
 import random
 import warnings
-
+from tkinter import ttk
+from typing import Dict, Any
 
 warnings.filterwarnings("ignore")
 
@@ -28,14 +29,20 @@ CONFIG_FILE_PATH = os.path.join(
 load_dotenv(CONFIG_FILE_PATH)
 
 BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
-DEPARTMENT = os.environ.get("DEPARTMENT")
 CLIENT_IP = os.environ.get("CLIENT_IP")
 IMAGE_SZ = (15, 15)
+CLIENT_BUSINESS = None
+
+# load Business
+client_business_req = requests.get(f"http://{CLIENT_IP}/business?name={BUSINESS_NAME}")
+
+if client_business_req.status_code == 200:
+    CLIENT_BUSINESS = client_business_req.json()
 
 class Main(tkinter.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Point Of Sale Software")
+        self.title(f"{BUSINESS_NAME} Point Of Sale Software")
         if sys.platform == "win32":
             self.state("zoomed")
         elif sys.platform == "linux"  or sys.platform == "linux2":
@@ -48,32 +55,35 @@ class Main(tkinter.Tk):
         self.buttonConfig = {
             "font": ("Dejavu Sans",  9),
             "border": 0,
-            'relief': tkinter.FLAT,
+            'relief': tkinter.GROOVE,
             "highlightthickness": 0,
             'bg': 'white',
             'takefocus': False
         }
+        self.configure(bg='white')
         self.orderQueue = OrderQueue()
-        self.startApp()
-        # self.authenticateStaff()
+        self.authenticateStaff()
 
     def clearWindow(self) -> None: 
         for widgets in self.winfo_children():
             widgets.destroy()
 
-    def loginUser(self) -> None:
-        payload = {
+    def fetchAuthPayload(self) -> Dict[str, Any]:
+        self.authPayload = {
+            'department': self.departmentEntry.get(),
             "email": self.emailEntry.get(),
             "password": self.passwordEntry.get()
         }
-        
+        self.departmentEntry.delete(0,tkinter.END)
+        self.emailEntry.delete(0, tkinter.END)
+        self.passwordEntry.delete(0, tkinter.END)
+        return self.authPayload
+
+    def loginUser(self) -> None: 
         # Send request to server
-        # response = requests.post(f"http://{CLIENT_IP}/staff/{business}/{department}", data=payload)
-        
-        # if response.status_code == 200:
-        self.authenticateStaff()
-        # authToken = response.json().get('token')
-    
+        self.authResponse = requests.post(f"http://{CLIENT_IP}/staff/login", data=self.fetchAuthPayload())
+        self.startApp()
+
     def loadSettings(self):
         for widgets in self.midnav.winfo_children():
             widgets.destroy()
@@ -90,26 +100,40 @@ class Main(tkinter.Tk):
         self.startApp()
     
     def authenticateStaff(self):
-        self.loginFrame = tkinter.Frame(self)
+        self.loginStyling = {
+            'ipadx': 10,
+            'ipady': 8,
+            'pady': 5
+        }
+        self.loginFrame = tkinter.Frame(self, bg='white')
         self.loginFrame.place(relx=.5, rely=.5, anchor=tkinter.CENTER)
 
-        self.emailLabel = tkinter.Label(self.loginFrame, text="Username")
-        self.emailLabel.grid()
+        self.departmentsLabel = tkinter.Label(self.loginFrame, text="Department", fg='black', bg='white', **self.fontConfig)
+        self.departmentsLabel.grid(sticky=tkinter.W)
 
-        self.emailEntry = tkinter.Entry(self.loginFrame)
-        self.emailEntry.grid()
+        self.departmentEntry = ttk.Combobox(self.loginFrame,width=39)
+        self.departmentEntry.grid(**self.loginStyling)
 
-        self.passwordLabel = tkinter.Label(self.loginFrame, text="Password")
-        self.passwordLabel.grid()
+        self.emailLabel = tkinter.Label(self.loginFrame, text="Username",**self.fontConfig, fg='black', bg='white')
+        self.emailLabel.grid(sticky=tkinter.W)
 
-        self.passwordEntry = tkinter.Entry(self.loginFrame)
-        self.passwordEntry.grid()
+        self.emailEntry = tkinter.Entry(self.loginFrame, width=40)
+        self.emailEntry.grid(**self.loginStyling)
+
+        self.passwordLabel = tkinter.Label(self.loginFrame, text="Password", fg='black', bg='white', **self.fontConfig)
+        self.passwordLabel.grid(sticky=tkinter.W)
+
+        self.passwordEntry = tkinter.Entry(self.loginFrame, width=40)
+        self.passwordEntry.grid(**self.loginStyling)
 
         self.signInButton = tkinter.Button(self.loginFrame,
-            text="Login to Counter",
-            command=self.loginUser
+            text="Authenticate Account",
+            command=self.loginUser,
+            width=37,
+            relief=tkinter.GROOVE,
+            **self.fontConfig
         )
-        self.signInButton.grid()
+        self.signInButton.grid(**self.loginStyling)
 
     def startApp(self):
         self.topFrame = tkinter.Frame(self)
@@ -249,16 +273,20 @@ class Main(tkinter.Tk):
         self.paymentMethodFrame = tkinter.Frame(self.totalsFrame)
         self.paymentMethodFrame.grid(row=0, column=2, pady=10)
 
+        self.paymentVar = tkinter.IntVar(self.paymentMethodFrame)
+
         self.cashpayLabel = tkinter.Label(self.paymentMethodFrame, text="Cash", font=("Arial", "10", "bold"))
         self.cashpayLabel.grid(row=0, column=0)
 
-        self.cashInput= tkinter.Checkbutton(self.paymentMethodFrame)
+        self.cashInput= tkinter.Checkbutton(self.paymentMethodFrame, variable=self.paymentVar, command=self.preparePayment)
         self.cashInput.grid(row=0, column=1)
 
         self.mpesaPayLabel = tkinter.Label(self.paymentMethodFrame, text="Mpesa", font=("Arial", "10", "bold"))
         self.mpesaPayLabel.grid(row=0, column=2)
 
-        self.mpesaInput= tkinter.Checkbutton(self.paymentMethodFrame)
+        self.mpesaVar = tkinter.IntVar(self.paymentMethodFrame)
+
+        self.mpesaInput= tkinter.Checkbutton(self.paymentMethodFrame, variable=self.mpesaVar, command=self.preparePayment)
         self.mpesaInput.grid(row=0, column=3)
 
         ## Totals
@@ -328,7 +356,7 @@ class Main(tkinter.Tk):
         }
 
         # Fetch subcategories from API
-        self.subcategories = requests.get(f"{CLIENT_IP}/subcategories")
+        self.subcategories = requests.get(f"http://{CLIENT_IP}/subcategories")
         # Display null buttons
         for i in range(6):
             exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
@@ -371,7 +399,7 @@ class Main(tkinter.Tk):
                 exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
                 exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
-        self.orderCommodities = requests.get(f"{CLIENT_IP}/products")
+        self.orderCommodities = requests.get(f"{CLIENT_IP}/products?business_id={BUSINESS_ID}&department_id={DEPARTMENT_ID}")
         if self.orderCommodities.status_code != 200:
             messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
         else:
@@ -458,38 +486,38 @@ class Main(tkinter.Tk):
         for items in self.order_queue:
             self.orderTreeview.insert(0, (items['name'], items['quantity'], items['amount']))
 
+    def preparePayment(self):
+        if self.paymentVar.get() == 1:
+            # Change entry field status
+            self.AmountEntry['state'] = tkinter.NORMAL
+        
+        if self.mpesaVar.get() == 1:
+            # Prepare intasend with Mpesa
+            # Initiate Entry for phone number
+            if self.paymentVar.get() == 0:
+                self.AmountEntry['state'] = tkinter.DISABLED
+            
+            self.clientWindow = tkinter.Toplevel()
+            self.clientWindow.title("Mpesa Stk Push")
+            self.clientWindow.geometry("400x350")
+
+            ## Labels for the input
+            self.phoneNumberLabel = tkinter.Label(self.clientWindow, text="Phone Number")
+            self.phoneNumberLabel.grid(row=0, column=0, pady=10)
+
+            self.phoneNumber = tkinter.Entry(self.clientWindow, width=40)
+            self.phoneNumber.grid(row=1, column=0, ipady=10, pady=10)
+
+            self.eval("tk::PlaceWindow . Center")
+            self.promptButton = tkinter.Button(self.clientWindow, text="Prompt Payment", command=self.promptMpesa, **self.buttonConfig)
+            self.promptButton.grid(row=2, column=0)
+
+    def promptMpesa(self):
+        pass
+
     def printReceipt(self):
         self.orderQueue.printReceipt(BUSINESS_NAME)
-        # self.printer = win32print.OpenPrinter("E-PoS printer driver")                               
-        # self.jobs = win32print.StartDocPrinter(self.printer, 1, (f"{BUSINESS_NAME}", None, "RAW"))
-        # win32print.StartPagePrinter(self.printer)                                                   
-        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format(f"{BUSINESS_NAME}"), "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("PAY BILL: 247 247 ACC No: 408904"), "utf-8"))    
-        # win32print.WritePrinter(self.printer, bytes(" {:^50}\n".format("CASH SALE"), "utf-8"))      
-        # win32print.WritePrinter(self.printer, bytes("DATE: {:<15} {:^15} {:<5}\n".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")), "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
-        # win32print.WritePrinter(self.printer, bytes("{:20s} {:15s} {}\n".format("ITEM", "QTY", "AMT") , "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
         
-        # # Queue From utils
-        # self.allOrders = self.orders.get_children()                                                 
-                                                                                                    
-        # for i in range(len(self.allOrders)):                                                        
-        #     win32print.WritePrinter(self.printer, bytes(f"{self.orders.set(self.allOrders[i],0):20s} {self.orders.set(self.allOrders[i], 1):15s} {self.orders.set(self.allOrders[i],2)}\n", "utf-8"))
-                                                                                                    
-        # win32print.WritePrinter(self.printer, bytes(f"{'-'*46}\n", "utf-8"))                        
-        # win32print.WritePrinter(self.printer, bytes(f"\nTOTAL AMOUNT: {self.customerTotal: .2f}\n", "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"TOTAL QUANTITY: {float(self.quantityEntry.get()): .2f}\n", "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"AMOUNT PAID: {float(self.AmountGivenEntry.get()): .2f}\n", "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"BALANCE:  {self.balance: .2f} \n", "utf-8"))  
-        # win32print.WritePrinter(self.printer, bytes(f"SERVED BY:  {CURRENT_USER.upper()} \n", "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes("{:^50}\n".format("TEL: 0742673703"), "utf-8")) 
-        # win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
-        # win32print.WritePrinter(self.printer, bytes("System by Mutable Tech: mutabletechke@gmail.com \n", "utf-8"))
-        # win32print.WritePrinter(self.printer, bytes(f"{'='*46}\n", "utf-8"))                        
-        # win32print.EndPagePrinter(self.printer)                                                     
-        # win32print.WritePrinter(self.printer, b'\x1dV\x01')
-
     def run(self):
         self.mainloop()
 
