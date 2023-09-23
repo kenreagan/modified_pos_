@@ -15,6 +15,7 @@ import random
 import warnings
 from tkinter import ttk
 from typing import Dict, Any
+from intasend import APIService
 
 warnings.filterwarnings("ignore")
 
@@ -32,12 +33,22 @@ BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
 CLIENT_IP = os.environ.get("CLIENT_IP")
 IMAGE_SZ = (15, 15)
 CLIENT_BUSINESS = None
+INTASEND_TOKEN = os.environ.get("INTASEND_TOKEN")
+PUBLISHABLE_KEY = os.environ.get("PUBLISHABLE_KEY")
+# PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
 
 # load Business
 client_business_req = requests.get(f"http://{CLIENT_IP}/business?name={BUSINESS_NAME}")
 
 if client_business_req.status_code == 200:
     CLIENT_BUSINESS = client_business_req.json()
+
+
+PAYMENT_SERVICE = APIService(
+    token=INTASEND_TOKEN,
+    publishable_key=PUBLISHABLE_KEY,
+    test=True
+)
 
 class Main(tkinter.Tk):
     def __init__(self):
@@ -81,7 +92,7 @@ class Main(tkinter.Tk):
 
     def loginUser(self) -> None: 
         # Send request to server
-        self.authResponse = requests.post(f"http://{CLIENT_IP}/staff/login", data=self.fetchAuthPayload())
+        # self.authResponse = requests.post(f"http://{CLIENT_IP}/staff/login", data=self.fetchAuthPayload())
         self.startApp()
 
     def loadSettings(self):
@@ -321,7 +332,7 @@ class Main(tkinter.Tk):
         self.printerImg = Image.open("icons/printer.png").resize((12, 12), resample=Image.LANCZOS)
         self.printerIcon= ImageTk.PhotoImage(self.printerImg)
 
-        self.printButton = tkinter.Button(self.paymentFrame, image=self.printerIcon, compound=tkinter.LEFT, text="Print Receipt", bg="#ff5e00")
+        self.printButton = tkinter.Button(self.paymentFrame, image=self.printerIcon, compound=tkinter.LEFT, text="Print Receipt", bg="#ff5e00", command=self.printReceipt)
         self.printButton.grid(row=0, column=0, ipady=8, ipadx=1)
 
         self.payImage = Image.open("icons/receivecash.png").resize((12, 12), resample=Image.LANCZOS)
@@ -365,10 +376,8 @@ class Main(tkinter.Tk):
         if self.subcategories.status_code != 200:
             messagebox.showerror("Error Fetching subcategories", "There was an error fetching the products")
         else:
-            self.subcategoryFilter = self.subcategories.json().get("sucategories")
-
-            #self.starters = tkinter.Button(self.categories, text="starter",**self.buttonConfig)
-            # self.starters.grid(row=0, column=0, **configs)
+            print(self.subcategories.json())
+            self.subcategoryFilter = self.subcategories.json().get("subcategories")
 
             for i in range(len(self.subcategoryFilter)):
                 exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
@@ -398,25 +407,26 @@ class Main(tkinter.Tk):
             for j in range(0, 5):
                 exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
                 exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
+        
+        if isinstance(CLIENT_BUSINESS, dict):
+            self.orderCommodities = requests.get(f"http://{CLIENT_IP}/products?business_id={CLIENT_BUSINESS['id']}&department_id={DEPARTMENT_ID}")
+            if self.orderCommodities.status_code != 200:
+                messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
+            else:
+                self.client_products = self.orderCommodities.json().get("products")
+                # Create Buttons
+                self.iteredProducts = list(zip(*[iter(self.client_products)]*5))
+                
+                for i in range(len(self.iteredProducts)):
+                    for j in range(0, len(self.iteredProducts[i])):
+                        t = self.iteredProduts[i][j]["name"]
+                        y = self.iteredProducts[i][j]["id"]
 
-        self.orderCommodities = requests.get(f"{CLIENT_IP}/products?business_id={BUSINESS_ID}&department_id={DEPARTMENT_ID}")
-        if self.orderCommodities.status_code != 200:
-            messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
-        else:
-            self.client_products = self.orderCommodities.json().get("products")
-            # Create Buttons
-            self.iteredProducts = list(zip(*[iter(self.client_products)]*5))
-            
-            for i in range(len(self.iteredProducts)):
-                for j in range(0, len(self.iteredProducts[i])):
-                    t = self.iteredProduts[i][j]["name"]
-                    y = self.iteredProducts[i][j]["id"]
-
-                    exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
-                    exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
-                    exec("self.item_%d['text'] = t"%i)
-                    exec("self.item_%d['command'] = lambda: self.addItem(y)"%i, {"__builtins__": {"self": self, "y": y}})
-                    exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
+                        exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
+                        exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
+                        exec("self.item_%d['text'] = t"%i)
+                        exec("self.item_%d['command'] = lambda: self.addItem(y)"%i, {"__builtins__": {"self": self, "y": y}})
+                        exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
     def viewOrders(self):
         for widgets in  self.midnav.winfo_children():
@@ -508,12 +518,21 @@ class Main(tkinter.Tk):
             self.phoneNumber = tkinter.Entry(self.clientWindow, width=40)
             self.phoneNumber.grid(row=1, column=0, ipady=10, pady=10)
 
-            self.eval("tk::PlaceWindow . Center")
+            # self.eval("tk::PlaceWindow . Center")
             self.promptButton = tkinter.Button(self.clientWindow, text="Prompt Payment", command=self.promptMpesa, **self.buttonConfig)
             self.promptButton.grid(row=2, column=0)
 
     def promptMpesa(self):
-        pass
+        # Pay for order -> Patch request to order class -> Post Request to Transactions class
+        phone_number = self.phoneNumber.get()
+        req = PAYMENT_SERVICE.collect.checkout(
+                    phone_number=phone_number,
+                    email="mutabletechke@gmail.com",
+                    amount=10,
+                    currency="KES",
+                    commend=""
+                )
+        return req
 
     def printReceipt(self):
         self.orderQueue.printReceipt(BUSINESS_NAME)
