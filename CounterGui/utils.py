@@ -6,11 +6,12 @@ from typing import Any,List
 
 class OrderAbc:
     def __init__(self, time: datetime.datetime, customer_name: str, served_by: str, table: int,
-                 price: float,phone_number:str) -> None:
+                 price: float,phone_number:str,quantity:float) -> None:
         self.time: datetime.datetime = time
         self.customer_name = customer_name
         self.served_by = served_by
         self.table = table
+        self.quantity=quantity
         self.price = price
         self.phone_number=phone_number
     
