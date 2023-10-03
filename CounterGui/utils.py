@@ -1,172 +1,257 @@
 from collections import deque
 import datetime
-from typing import Any,List
-# import win32print
-# import win32ui
+from typing import (
+    Optional,
+    Any,
+    List,
+    TypeVar
+)
+import win32print
+import win32ui
+import win32con
+import ctypes
+from ctypes import wintypes
+from PIL import Image, ImageWin
 
-class OrderAbc:
+class OrderedQueueAbc:
     def __init__(self, time: datetime.datetime, customer_name: str, served_by: str, table: int,
-                 price: float,phone_number:str,quantity:float) -> None:
+                 price: float,phone_number:str) -> None:
         self.time: datetime.datetime = time
         self.customer_name = customer_name
         self.served_by = served_by
         self.table = table
-        self.quantity=quantity
         self.price = price
-        self.phone_number=phone_number
+        self.phone_number = phone_number
     
     def __repr__(self) -> str:
         return f'{self.__class__.__qualname__}(time={self.time!r}, customer_name={self.customer_name!r}, served_by={self.served_by!r}, table={self.table!r}, price={self.price!r}, phone={self.phone_no!r})'
 
 
-class Product:
-    def __init__(self, name, quantity, price):
+class ProductQueueAbc:
+    def __init__(self, name, price, quantity=1):
         self.name = name
         self.quantity = quantity
         self.price = price
 
+    def __repr__(self):
+        return f'{self.__class__.__qualname__}(name={self.name}, quantity={self.quantity}, price={self.price})'
+
+T = TypeVar("T", OrderedQueueAbc, ProductQueueAbc)
+
 class OrderQueue:
     def __init__(self):
-        self.pendigorders = deque()
-        self.normalorders = deque()
+        self.pendingOrders = deque()
+        self.normalOrders = deque()
+        self.defy: int = 4
         
-    def addPendingOrder(self, order):
-        try:
-            existing_order = next((i for i in self.pendingorders if i.phone_number == order.phone_number), None)
-            if existing_order:
-                existing_order.price += order.price
+    def addOrder(self, order: Optional[T]):
+        # Check the instance of the order
+        if isinstance(order, OrderedQueueAbc):
+            for i in self.pendingOrders:
+                if i.phone_number == order.phone_number:
+                    i.price += order.price
+                else:
+                    self.pendingOrders.append(order)
+        elif isinstance(order, ProductQueueAbc):
+            if self.is_empty("Normal"):
+                self.normalOrders.appendleft(order)
             else:
-                self.orders.appendleft(order)
-        except Exception as e:
-            print(f"An error occurred while adding the order: {e}")          
+                for orders in self.normalOrders:
+                    try:
+                        if orders.name == order.name:
+                            orders.quantity += order.quantity
+                            order = None
+                    except:
+                        continue
+                else:
+                    self.normalOrders.append(order)
     
-    def delete_order(self, order):
-        self.orders.remove(order)
+    def deleteOrder(self, order):
+        if isinstance(order, OrderedQueueAbc):
+            self.pendingOrders.remove(order)
+        elif isinstance(order, ProductQueueAbc):
+            self.normalOrders.remove(order)
     
-    def find_order(self, phone_number: str) -> List[OrderAbc]:
+    def find_order(self, category, name=None, phone_number: str=None):
         try:
-            low, high = 0, len(self.orders) - 1
+            low, high = 0, len(self.pendingOrders) - 1 if category == "Pending" else len(self.normalOrders) - 1
             found_order = []
             while low <= high:
                 mid = (low + high) // 2
-                if self.orders[mid].phone_number == phone_number:
-                    found_order.append(self.orders[mid])
-                    left, right = mid - 1, mid + 1
-                    while left >= 0 and self.orders[left].phone_number == phone_number:
-                        found_order.append(self.orders[left])
-                        left -= 1
-                    while right < len(self.orders) and self.orders[right].phone_number == phone_number:
-                        found_order.append(self.orders[right])
-                        right += 1
-                    return found_order
-                elif self.orders[mid].phone_number < phone_number:
-                    low = mid + 1
+                if category == "Pending":
+                    if phone_number:
+                        if self.pendingOrders[mid].phone_number == phone_number:
+                            found_order.append(self.pendingOrders[mid])
+                            left, right = mid - 1, mid + 1
+                            while left >= 0 and self.pendingOrders[left].phone_number == phone_number:
+                                found_order.append(self.pendingOrders[left])
+                                left -= 1
+                            while right < len(self.pendingOrders) and self.pendingOrders[right].phone_number == phone_number:
+                                found_order.append(self.pendingOrders[right])
+                                right += 1
+                            return found_order
+                        elif self.pendingOrders[mid].phone_number < phone_number:
+                            low = mid + 1
+                        else:
+                            high = mid - 1
                 else:
-                    high = mid - 1
+                    if name:
+                        if self.normalOrders[mid].name == name:
+                            found_order.append(self.normalOrders[mid])
+                            left, right = mid - 1, mid + 1
+                            while left >= 0 and self.normalOrders[left].name == name:
+                                found_order.append(self.normalOrders[left])
+                                left -= 1
+                            while right < len(self.normalOrders) and self.normalOrders[right].phone_number == phone_number:
+                                found_order.append(self.normalOrders[right])
+                                right += 1
+                            return found_order
+                        elif self.normalOrders[mid].name < name:
+                            low = mid + 1
+                        else:
+                            high = mid - 1
+                    raise ValueError("Order identifier missing")
             return found_order
         
         except Exception as e:
             print(f"An error occurred while finding the order: {e}")
 
-    
-    def get_total_revenue(self) -> float:
-        try:
-            return sum(order.price for order in self.orders)
-        except Exception as e:
-            print(f"An error occurred while getting total revenue: {e}")
-            
+    def getTotals(self) -> float:
+        return float(sum([(item.quantity * item.price) for item in self.normalOrders if item]))
 
-    def find_orders_by_time(self, start_time: datetime.datetime, end_time: datetime.datetime) -> List[OrderAbc]:
+
+    def getQuantity(self) -> float:
+        return sum([item.quantity for item in self.normalOrders if item])
+
+    def getTax(self):
+        return 0.16 * self.getTotals()            
+
+    def find_orders_by_time(self, start_time: datetime.datetime, end_time: datetime.datetime):
         try:
-            return [order for order in self.orders if start_time <= order.time <= end_time]
+            return [order for order in self.pendingOrders if start_time <= order.time <= end_time]
         except Exception as e:
             print(f"An error occurred while finding the order by time: {e}")
  
 
-    def clear_orders(self):
+    def clearOrders(self, category):
         try:
-            self.orders.clear()
-        
+            self.pendingOrders.clear() if category == "Pending" else self.normalOrders.clear()
         except Exception as e:
-            print(f"An error occurred while clearing orders: {e}")
-            
+            print(f"An error occurred while clearing orders: {e}")    
 
-    def list_orders(self) -> List[OrderAbc]:
+    def listOrders(self, category: str):
         try:
-            return list(self.orders)
+           return list(self.normalOrders) if category == "Normal" else list(self.pendingOrders)
         except Exception as e:
             print(f"An error occurred while listing orders: {e}")
  
-    def is_empty(self) -> bool:
+    def is_empty(self, category) -> bool:
         try:
-            return len(self.orders) == 0
+            return len(self.normalOrders) == 0 if category == "Normal" else len(self.pendingOrders)
         except Exception as e:
             print(f"An error occurred while checking whether order is empty: {e}")
             
     
     def __len__(self) -> int:
-        return len(self.orders)
+        return len(self.normalOrders)
 
-    def printReceipt(self):
-        printer_name = win32print.GetDefaultPrinter()
-        hprinter = win32print.OpenPrinter(printer_name)
-        printer_info = win32print.GetPrinter(hprinter, 2)
+    def draw_img(self, hdc, dib, maxh, maxw):
+        w, h = dib.size
+        h = min(h, maxh)
+        w = min(w, maxw)
+        l = (maxw - w) // 2
+        t = (maxh - h) // self.defy
+        dib.draw(hdc, (l, t, l + w, t + h))
 
-        
-        printer_dc = win32ui.CreateDC()
-        printer_dc.CreatePrinterDC(printer_name)
+    def add_img(self, hdc, file_name, new_page=False):
+        maxw = hdc.GetDeviceCaps(win32con.HORZRES)
+        maxh = hdc.GetDeviceCaps(win32con.VERTRES)
+        img = Image.open(file_name).resize((220, 220), resample=Image.LANCZOS)
+        dib = ImageWin.Dib(img)
+        self.draw_img(hdc.GetHandleOutput(), dib, maxh, maxw)
 
-        
-        printer_dc.StartDoc('Receipt')
-        printer_dc.StartPage()
-        printer_dc.SetMapMode(win32con.MM_TWIPS)
-        printer_dc.SetTextAlign(win32con.TA_LEFT)
-        printer_dc.SetBkMode(win32con.TRANSPARENT)
+    def padString(self, order) -> str:
+        maxLen = max([len(item.name) for item in self.normalOrders])
 
-        
-        printer_dc.SelectObject(win32ui.CreateFont({
-            "name": "Arial",
-            "height": 24,
+        if len(order.name) < maxlen:
+            outPut = str(order.name) + ' ' * maxLen - len(order)
+            return outPut
+        else:
+            return order.name
+
+    def printReceipt(self, store_name, business_phone, business_location, amountGiven, staff):
+        self.printer = win32print.GetDefaultPrinter()
+        self.hprinter = win32print.OpenPrinter(self.printer)
+        self.printer_info = win32print.GetPrinter(self.hprinter, 2)
+
+        self.printer_dc = win32ui.CreateDC()
+        self.printer_dc.CreatePrinterDC(self.printer)
+        self.printer_dc.StartDoc('Receipt')
+        self.printer_dc.StartPage()
+        self.printer_dc.SetTextAlign(win32con.TA_NOUPDATECP)
+        self.printer_dc.SetBkMode(win32con.TRANSPARENT)
+        self.printer_dc.SelectObject(win32ui.CreateFont({
+            "name": "Exort Light",
+            "height": 24
         }))
+        self.x, self.y = 0, 0  
+        self.line_height = 40
 
-        
-        x, y = 100, 100  
-        line_height = 30
+        left_margin = 0
+        right_margin = 0
+        top_margin = 0
+        bottom_margin = 0
 
-        printer_dc.TextOut(x, y, "{:^50}".format(self.store_name))
-        y += line_height
-        printer_dc.TextOut(x, y, "DATE: {:<15} {:^15} {:<5}".format(
-            datetime.datetime.now().strftime("%D"), "TIME:",
-            datetime.datetime.now().strftime("%H:%M:%S")))
-        y += line_height
-        printer_dc.TextOut(x, y, "=" * 46)
-        y += line_height
-        printer_dc.TextOut(x, y, "{:<20s} {:<10s} {:>15s}".format("Name", "Quantity", "Price"))
-        y += line_height
-        printer_dc.TextOut(x, y, "=" * 46)
+        self.printer_dc.TextOut(180, -5, f"{store_name.upper()} RESTAURANT")
+        self.y += self.line_height
+        self.printer_dc.TextOut(200, self.y, f"{business_location}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(180, self.y, f"PHONE: {business_phone}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:<20}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, "{:<15} {:>25} {:>30}".format("ITEM", "QUANTITY", "AMT"))
+        self.y += self.line_height
 
-        for order in order_queue.list_orders():
-            y += line_height
-            printer_dc.TextOut(x, y, "{:<20s} {:^10.2f} {:>15.2f}".format(order.customer_name[:20], order.quantity, order.price))
+        # Iterate Over the Orders
+        for orders in self.normalOrders:
+            try:
+                if orders:
+                    self.printer_dc.TextOut(self.x, self.y, f"{orders.name: <15} {orders.quantity: >20} { (orders.price * orders.quantity): >30}")
+                    self.y += self.line_height
+                    self.defy += len(self) // 8
+                else:
+                    continue
+            except:
+                continue
 
-        y += line_height
-        subtotal = order_queue.get_total_revenue()
-        tax_rate = 0.1
-        tax = subtotal * tax_rate
-        total = subtotal + tax
-
-        printer_dc.TextOut(x, y, "=" * 46)
-        y += line_height
-        printer_dc.TextOut(x, y, "SUBTOTAL: {:.2f}".format(subtotal))
-        y += line_height
-        printer_dc.TextOut(x, y, "TAX ({}%): {:.2f}".format(int(tax_rate * 100), tax))
-        y += line_height
-        printer_dc.TextOut(x, y, "TOTAL: {:.2f}".format(total))
-        y += line_height
-        printer_dc.TextOut(x, y, "SERVED BY: {}".format(self.current_user.upper()))
-
-    
-        printer_dc.EndPage()
-        printer_dc.EndDoc()
-        printer_dc.DeleteDC()
-        
+        self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y,f"{'-'*100}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"TOTAL AMOUNT: {self.getTotals(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"TOTAL QUANTITY: {self.getQuantity()}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"AMOUNT PAID: {amountGiven: .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"BALANCE: {float(amountGiven) - self.getTotals(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"VAT TAX:  {self.getTax(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"SERVED BY: {staff.upper()}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"{'='*80}")
+        self.y += self.line_height
+        # Load image
+        # self.add_img(self.printer_dc, "images/mutabletechpos.png")
+        self.printer_dc.TextOut(self.x, self.y, "system by mutable tech: info@mutabletech.co.ke")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, "visit us on mutabletech.co.ke")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"{'='*80}")
+        self.printer_dc.EndPage()
+        self.printer_dc.EndDoc()
+        self.printer_dc.DeleteDC()

@@ -1,4 +1,16 @@
 import tkinter
+from PIL import Image, ImageTk
+import requests
+from io import BytesIO
+
+class FoodImage:
+    def __init__(self, link):
+        self.imgByte = requests.get(link)
+        self.image = ImageTk.PhotoImage(Image.open(BytesIO(self.imgByte.content)))
+
+    def get(self):
+        return self.image
+
 class RoundedButton(tkinter.Canvas):
     def __init__(self, parent, width, height, cornerradius, padding, color, bg, command=None):
         tkinter.Canvas.__init__(self, parent, borderwidth=0, 
