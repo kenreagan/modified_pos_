@@ -108,7 +108,7 @@ class Main(tkinter.Tk):
             AUTH_TOKEN = self.authResponse.json()['token']
             self.startApp()
         else:
-            messagebox.showerror("Authentication Error", "Error login in user, please contact the adminstrator")
+            messagebox.showerror("Authentication Error", "Invalid Credentials, contact your adminstrator")
         # self.startApp()
 
     def loadSettings(self):
@@ -183,7 +183,7 @@ class Main(tkinter.Tk):
         self.homePhoto = Image.open("icons/home.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.homeIcon = ImageTk.PhotoImage(self.homePhoto)
 
-        self.homeButton = tkinter.Button(self.side_nav, width=7, text="Home", image=self.homeIcon, compound=tkinter.TOP, command=self.load_home, **self.buttonConfig)
+        self.homeButton = tkinter.Button(self.side_nav, width=7, text="Home", image=self.homeIcon, compound=tkinter.TOP, command=self.startApp, **self.buttonConfig)
         self.homeButton.grid(row=0, column=0, **self.sidenavConfig)
     
         self.clientsPhoto = Image.open("icons/clients.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
@@ -207,8 +207,8 @@ class Main(tkinter.Tk):
         self.reportPhoto = Image.open("icons/report.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.reportIcon = ImageTk.PhotoImage(self.reportPhoto)
 
-        self.reportButton = tkinter.Button(self.side_nav, width=7, image=self.reportIcon, compound=tkinter.TOP, text="Report", **self.buttonConfig)
-        self.reportButton.grid(row=4, column=0,**self.sidenavConfig)
+        self.menuButton = tkinter.Button(self.side_nav, width=7, image=self.reportIcon, compound=tkinter.TOP, text="Menu", command=self.loadMenu, **self.buttonConfig)
+        self.menuButton.grid(row=4, column=0,**self.sidenavConfig)
         
         self.settingsPhoto = Image.open("icons/settings.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.settingsIcon = ImageTk.PhotoImage(self.settingsPhoto)
@@ -232,12 +232,81 @@ class Main(tkinter.Tk):
         self.midnav.grid(row=0, column=1)
 
         ## Add Business Logo To the Mid Section
+        self.categories = tkinter.Frame(self.midnav, bg="white")
+        self.categories.grid(row=0, column=0, padx=15)
 
-        self.coverimage = Image.open("images/nyama_choma.jpg").resize((490, 650), resample=Image.LANCZOS)
-        self.coverLogo = ImageTk.PhotoImage(self.coverimage)
+        ## Product Categories
+        self.configs = {
+            'ipady': 7,
+            'ipadx': 45.4
+        }
 
-        self.labelIcon = tkinter.Label(self.midnav, image=self.coverLogo)
-        self.labelIcon.grid(padx=2)
+        # Fetch subcategories from API
+        self.subcategories = requests.get(f"http://{CLIENT_IP}/subcategories")
+        # Display null buttons
+        for i in range(5):
+            exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
+            exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
+
+        if self.subcategories.status_code != 200:
+            messagebox.showerror("Error Fetching subcategories", "There was an error fetching the products")
+        else:
+            self.subcategoryFilter = self.subcategories.json().get("subcategories")
+
+            for i in range(len(self.subcategoryFilter)):
+                exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
+                exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
+                exec("self.item_%d['text'] = t"%self.subcategoryFilter[i]['name'])
+                exec("self.item_%d['command'] = lambda: self.filterProducts(self.subcategoryFilter[i]['name'])"%i, {"__builtins__": {"self": self, "y": self.subcategoryFilter[i]['name']}})
+                exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
+
+        # buttonConfigs
+        self.btnConfig = {
+            'ipady': 81.1,
+            'ipadx': 52,
+            'padx': 5,
+            'pady': 10
+        }
+        self.products = tkinter.Frame(self.midnav)
+        self.products.grid(row=1, column=0)
+
+        self.midButtonConfig = {
+            'bg':'white',
+            'border': 0,
+            'font': ('Dejavu Sans', 9)
+        }
+
+        # Fetch the products from the business
+        # Create null pointer
+        for i in range(3):
+            for j in range(0, 4):
+                exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
+                exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
+
+        if isinstance(CLIENT_BUSINESS, dict):
+            self.orderCommodities = requests.get(f"http://{CLIENT_IP}/products")
+
+            self.updateProgressBar(f"http://{CLIENT_IP}/products")
+
+            if self.orderCommodities.status_code != 200:
+                 messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
+            else:
+                self.client_products = self.orderCommodities.json().get("products")
+                # Create Buttons
+                self.foodImage = Image.open("images/Food/" +random.choice(os.listdir("./images/Food/"))).resize((90, 90), resample=Image.LANCZOS)
+                self.foodImageIcon = ImageTk.PhotoImage(self.foodImage)
+                self.iteredProducts = list(zip(*[iter(self.client_products)]*4))
+                if len(self.iteredProducts) > 0:
+                    for i in range(len(self.iteredProducts)):
+                        for j in range(0, len(self.iteredProducts[i])):
+                            t = self.iteredProducts[i][j]["name"]
+                            y = self.iteredProducts[i][j]["id"]
+                            # if self.iteredProducts[i][j]['image']:
+                            #     exec("self.prodBtn_%d = tkinter.Button(self.products, image=FoodImage(self.iteredProducts[i][j]['image']).get(), compound=tkinter.BOTTOM, **self.midButtonConfig)"%i)
+                            exec("self.prodBtn_%d = tkinter.Button(self.products, compound=tkinter.TOP, image=self.foodImageIcon, **self.midButtonConfig)"%i)
+                            exec("self.prodBtn_%d['text'] = t"%i)
+                            exec("self.prodBtn_%d['command'] = lambda: self.addItem(y)"%i, {"__builtins__": {"self": self, "y": y}})
+                            exec(f"self.prodBtn_{i}.grid(row=i, column=j)")
 
         self.ordersFrame = tkinter.Frame(self.bottomFrame, relief=tkinter.RAISED)
         self.ordersFrame.grid(row=0, column=2, padx=20)
@@ -257,7 +326,7 @@ class Main(tkinter.Tk):
         self.refreshImage = Image.open('./icons/refreshicon.png').resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.refreshIcon = ImageTk.PhotoImage(self.refreshImage)
 
-        self.reloadBtn = tkinter.Button(self.customermanager, command=self.updateProgressBar, image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17,bg='#f5f4f2', **self.fontConfig)
+        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"http://{CLIENT_IP}/orders"), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17,bg='#f5f4f2', **self.fontConfig)
         self.reloadBtn.grid(row=0, column=3, ipady=6, pady=5, ipadx=54)
 
         ##### Orders Tree view
@@ -311,13 +380,13 @@ class Main(tkinter.Tk):
 
         ## Totals
         self.subtotalsLabel = tkinter.Label(self.totalsFrame,text="Subtotal", font=("Arial", "10", "bold"))
-        self.subtotalsLabel.grid(row=1, column=0, padx=18)
+        self.subtotalsLabel.grid(row=1, column=0, padx=10)
 
         self.subtotalsAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
         self.subtotalsAmount.grid(row=1, column=1)
         
         self.taxLabel = tkinter.Label(self.totalsFrame,text="Tax",font=("Arial", "10", "bold"))
-        self.taxLabel.grid(row=1, column=2, padx=10)
+        self.taxLabel.grid(row=1, column=2, padx=5)
 
         self.taxAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
         self.taxAmount.grid(row=1, column=3, padx=14)
@@ -332,7 +401,7 @@ class Main(tkinter.Tk):
         self.payableLabel.grid(row=2, column=2)
 
         self.payableAmount = tkinter.Label(self.totalsFrame, text="Ksh. 0.00",font=("Arial", "10", "bold"))
-        self.payableAmount.grid(row=2, column=3, padx=14)
+        self.payableAmount.grid(row=2, column=3, padx=5)
 
         self.paymentFrame = tkinter.Frame(self.ordersFrame)
         self.paymentFrame.grid(row=3, column=0, pady=5)
@@ -341,20 +410,20 @@ class Main(tkinter.Tk):
         self.printerImg = Image.open("icons/printer.png").resize((10, 10), resample=Image.LANCZOS)
         self.printerIcon= ImageTk.PhotoImage(self.printerImg)
 
-        self.printButton = tkinter.Button(self.paymentFrame, image=self.printerIcon, relief=tkinter.GROOVE, compound=tkinter.TOP, text="Print Receipt", command=self.printReceipt)
+        self.printButton = tkinter.Button(self.paymentFrame, image=self.printerIcon, relief=tkinter.GROOVE, compound=tkinter.TOP, text="Print Receipt", state=tkinter.DISABLED, command=self.printReceipt)
         self.printButton.grid(row=0, column=0, ipady=5, ipadx=45 , padx=5)
         
         self.queueImg = Image.open("icons/kitchenQueue.png").resize((10, 10),resample=Image.LANCZOS)
         self.queueIcon = ImageTk.PhotoImage(self.queueImg)
 
-        self.holdButton = tkinter.Button(self.paymentFrame, text="Queue order", relief=tkinter.GROOVE, compound=tkinter.TOP, image=self.queueIcon)
+        self.holdButton = tkinter.Button(self.paymentFrame, state=tkinter.DISABLED, text="Queue order", relief=tkinter.GROOVE, compound=tkinter.TOP, image=self.queueIcon, command=self.AddQueue)
         self.holdButton.grid(row=0, column=2, ipady=5, ipadx=20, padx=5)
 
         self.cancelImg = Image.open("icons/cancel.png").resize((10, 10), resample=Image.LANCZOS)
         self.cancelIcon= ImageTk.PhotoImage(self.cancelImg)
 
-        self.proceed = tkinter.Button(self.paymentFrame, image=self.cancelIcon,relief=tkinter.GROOVE, compound=tkinter.TOP, text="Clear Entry", command=self.clearOrders)
-        self.proceed.grid(row=0, column=3, ipady=5, ipadx=20, padx=5)
+        self.clearOrderBtn = tkinter.Button(self.paymentFrame, image=self.cancelIcon, state=tkinter.DISABLED, relief=tkinter.GROOVE, compound=tkinter.TOP, text="Clear Entry", command=self.clearOrders)
+        self.clearOrderBtn.grid(row=0, column=3, ipady=5, ipadx=20, padx=5)
 
     def ManageOrders(self):
         self.menuPopup = tkinter.Menu(self, tearoff=0)
@@ -376,14 +445,22 @@ class Main(tkinter.Tk):
         if len(self.orderQueue) > 0:
             self.orderQueue.clearOrders("Normal")
             self.reloadOrderTreeView()
+        # Disable the print button
+        self.printButton['state'] = tkinter.DISABLED
+        self.holdButton['state'] = tkinter.DISABLED
+        self.clearOrderBtn['state'] = tkinter.DISABLED
 
-    def updateProgressBar(self):
+    def updateProgressBar(self, url):
         while True:
             # Time order fetching request
-            # req = requests.get(f"http://")
-            self.update_idletasks()
-            self.progressBar['value'] += 10
-            time.sleep(0.1)
+            try:
+                req = requests.get(url)
+                if req.status_code == 200:
+                    break
+            except:
+                self.update_idletasks()
+                self.progressBar['value'] += 10
+                time.sleep(0.001)
 
     def loadStatus(self):
         self.searchImage = Image.open('icons/search.png').resize((18, 18), resample=Image.LANCZOS)
@@ -393,7 +470,7 @@ class Main(tkinter.Tk):
         self.searchBtn.grid(column=0, row=0, ipady=1, ipadx=30)
 
         # Fill details of the Logged in Staff
-        self.loggedInUser = tkinter.Button(self.statusBar, compound=tkinter.LEFT, relief=tkinter.GROOVE, text="Elijah Wanyonyi", width=19)
+        self.loggedInUser = tkinter.Button(self.statusBar, compound=tkinter.LEFT, relief=tkinter.GROOVE, text=STAFF, width=19)
         self.loggedInUser.grid(column=1, row=0, ipady=1)
 
         # Display the loaded data size
@@ -423,81 +500,6 @@ class Main(tkinter.Tk):
 
         self.alertBtn = tkinter.Button(self.statusBar, compound=tkinter.LEFT, image=self.alertIcon, relief=tkinter.GROOVE, text=f"Notifications")
         self.alertBtn.grid(column=6, row=0, ipady=1, ipadx=10)
-
-    def load_home(self):
-        for widgets in self.midnav.winfo_children():
-            widgets.destroy()
-
-        self.categories = tkinter.Frame(self.midnav, bg="white")
-        self.categories.grid(row=0, column=0, padx=15)
-
-        ## Product Categories
-        self.configs = {
-            'ipady': 7,
-            'ipadx': 45.4
-        }
-
-        # Fetch subcategories from API
-        self.subcategories = requests.get(f"http://{CLIENT_IP}/subcategories")
-        # Display null buttons
-        for i in range(5):
-            exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
-            exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
-
-        if self.subcategories.status_code != 200:
-            messagebox.showerror("Error Fetching subcategories", "There was an error fetching the products")
-        else:
-            self.subcategoryFilter = self.subcategories.json().get("subcategories")
-
-            for i in range(len(self.subcategoryFilter)):
-                exec("self.item_%d = tkinter.Button(self.categories, **self.buttonConfig)"%i)
-                exec("self.item_%d['bg'] = random.choice(['#2d725e', '#14cc91', '#ef4f2b','#07c183', '#d3b41b', '#07a2c1'])"%i)
-                exec("self.item_%d['text'] = t"%self.subcategoryFilter[i]['name'])
-                exec("self.item_%d['command'] = lambda: self.filterProducts(self.subcategoryFilter[i]['name'])"%i, {"__builtins__": {"self": self, "y": self.subcategoryFilter[i]['name']}})
-                exec(f"self.item_{i}.grid(row=0, column=i, **self.configs)")
-
-        # buttonConfigs
-        self.btnConfig = {
-            'ipady': 81.1,
-            'ipadx': 52,
-            'padx': 5,
-            'pady': 10
-        }
-        self.products = tkinter.Frame(self.midnav)
-        self.products.grid(row=1, column=0)
-
-        self.midButtonConfig = {
-            'bg':'white',
-            'border': 0
-        }
-
-        # Fetch the products from the business
-        # Create null pointer
-        for i in range(3):
-            for j in range(0, 4):
-                exec("self.item_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
-                exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
-
-        if isinstance(CLIENT_BUSINESS, dict):
-            self.orderCommodities = requests.get(f"http://{CLIENT_IP}/products")
-            if self.orderCommodities.status_code != 200:
-                messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
-            else:
-                self.client_products = self.orderCommodities.json().get("products")
-                # Create Buttons
-                self.iteredProducts = list(zip(*[iter(self.client_products)]*4))
-
-                if len(self.iteredProducts) > 0:
-                    for i in range(len(self.iteredProducts)):
-                        for j in range(0, len(self.iteredProducts[i])):
-                            t = self.iteredProducts[i][j]["name"]
-                            y = self.iteredProducts[i][j]["id"]
-                            if self.iteredProducts[i][j]['image']:
-                                exec("self.prodBtn_%d = tkinter.Button(self.products, image=self.FoodImage(self.iteredProducts[i][j]['image']).get(), compound=tkinter.BOTTOM, **self.midButtonConfig)"%i)
-                            exec("self.prodBtn_%d = tkinter.Button(self.products, **self.midButtonConfig)"%i)
-                            exec("self.prodBtn_%d['text'] = t"%i)
-                            exec("self.prodBtn_%d['command'] = lambda: self.addItem(y)"%i, {"__builtins__": {"self": self, "y": y}})
-                            exec(f"self.prodBtn_{i}.grid(row=i, column=j)")
 
     def viewOrders(self):
         for widgets in  self.midnav.winfo_children():
@@ -571,8 +573,13 @@ class Main(tkinter.Tk):
         order = ProductQueueAbc(name=order_item['name'], price=order_item['price'])
         self.orderQueue.addOrder(order)
         self.reloadOrderTreeView()
-        # Update the totals from the payment Frame
 
+        # Change State of the print Button
+        self.printButton['state'] = tkinter.NORMAL
+        self.holdButton['state'] = tkinter.NORMAL
+        self.clearOrderBtn['state'] = tkinter.NORMAL
+
+        self.updateProgressBar(f"http://{CLIENT_IP}/products/{item_id}")
 
     def reloadOrderTreeView(self):
 
@@ -582,7 +589,10 @@ class Main(tkinter.Tk):
                 self.orderTreeview.insert("", tkinter.END, values=(items.name, items.quantity, items.price))
 
         # Update the totals
-        self.subtotalsAmount['text'] = self.orderQueue.getTotals()
+        self.subtotalsAmount['text'] = f"Ksh. {self.orderQueue.getTotals(): .2f}"
+        self.taxAmount['text'] = f"Ksh. {self.orderQueue.getTax(): .2f}"
+        self.payableAmount['text'] = f"Ksh. {self.orderQueue.getTotals(): .2f}"
+        self.orderQuantityValues['text'] = f"{self.orderQueue.getQuantity()}"
 
     def preparePayment(self):
         if self.paymentVar.get() == 1:
@@ -634,6 +644,11 @@ class Main(tkinter.Tk):
         self.orderTreeview.heading("Amount", text="Amount")
         self.orderTreeview.column("Amount",width=135)
         self.orderTreeview.grid(row=0, column=0)
+
+        # Check for items in the Queue
+        for elements in self.orderQueue.normalOrders:
+            if elements:
+                self.orderTreeview.insert("", tkinter.END, (elements.name, elements.quantity, elements.price))
         # Bind Event to treeview
         self.orderTreeview.bind("<Button-3>", self.ManageOrders)
 
@@ -641,8 +656,56 @@ class Main(tkinter.Tk):
         for widgets in self.ordersTreeviewFrame.winfo_children():
             widgets.destroy()
         # Call the order tree view 
-        self.loadEntries()   
+        self.loadEntries()
 
+    def AddQueue(self):
+        # Prompt for client Details
+        self.queueWindow = tkinter.Toplevel()
+        self.queueWindow.title("Queue Order")
+
+        self.tableNumberLabel = tkinter.Label(self.queueWindow, text="Table No.")
+        self.tableNumberLabel.grid(row=0, column=0, sticky=tkinter.W)
+
+        self.tableNumber = tkinter.Entry(self.queueWindow)
+        self.tableNumber.grid(row=1, column=0, padx=10, ipady=5, pady=5)
+
+        self.customerPhoneLabel = tkinter.Label(self.queueWindow, text="Customer Phone.")
+        self.customerPhoneLabel.grid(row=0, column=1, sticky=tkinter.W)
+
+        self.customerPhone = tkinter.Entry(self.queueWindow)
+        self.customerPhone.grid(row=1, column=1, padx=10, ipady=5, pady=5)
+
+        self.customerNameLabel = tkinter.Label(self.queueWindow, text="Customer Name")
+        self.customerNameLabel.grid(row=0, column=2, sticky=tkinter.W)
+
+        self.customerName = tkinter.Entry(self.queueWindow)
+        self.customerName.grid(row=1, column=2, padx=10, ipady=5, pady=5)
+
+        self.submitReq = tkinter.Button(self.queueWindow, relief=tkinter.GROOVE, text="Queue Order", width=13, command=self.createPendingOrder)
+        self.submitReq.grid(row=2, column=2, pady=5, ipady=5, ipadx=10)
+
+    def createPendingOrder(self):
+        self.orderQueue.addOrder(
+            OrderedQueueAbc(**{
+                "time": datetime.datetime.utcnow(),
+                "price": self.orderQueue.getTotals(),
+                "customer_name": self.customerName.get(),
+                "served_by": STAFF,
+                "table": self.tableNumber.get(),
+                "phone_number": self.customerPhone.get()
+            })
+        )
+        # Post order with status unpaid
+        self.Orderpayload = {
+
+        }
+        self.order = requests.post(f"http://{CLIENT_IP}/orders", json=self.Orderpayload)
+
+        if self.order.status_code == 200:
+            # Pop the Item from the queue
+            self.queueWindow.destroy()
+        else:
+            messagebox.showerror("Order adding order", "Error could not be created")
 
     def promptMpesa(self):
         # Pay for order -> Patch request to order class -> Post Request to Transactions class
@@ -656,9 +719,21 @@ class Main(tkinter.Tk):
             )
         return req
 
+    def loadMenu(self):
+        self.clearWindow()
+
     def printReceipt(self):
         # Create order item and post to server
-        self.orderQueue.printReceipt(BUSINESS_NAME, BUSINESS_PHONE, BUSINESS_LOCATION, self.calculator.getAmount(), STAFF)
+        self.completeOrderPayload = {
+            "status": "complete"
+        }
+
+        self.orderRequest = requests.post(f"https://{CLIENT_IP}/orders", json=self.completeOrderPayload)
+
+        if self.orderRequest.status_code == 200:
+            self.orderQueue.printReceipt(BUSINESS_NAME, BUSINESS_PHONE, BUSINESS_LOCATION, self.calculator.getAmount(), STAFF)
+        else:
+            messagebox.showerror("Error generating receipt", "Error Printing receipt")
 
     def run(self):
         self.mainloop()
