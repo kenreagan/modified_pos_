@@ -28,7 +28,8 @@ class OrderedQueueAbc:
 
 
 class ProductQueueAbc:
-    def __init__(self, name, price, quantity=1):
+    def __init__(self, id, name, price, quantity=1):
+        self.id = id
         self.name = name
         self.quantity = quantity
         self.price = price
@@ -215,18 +216,18 @@ class OrderQueue:
         self.y += self.line_height
         self.printer_dc.TextOut(180, self.y, f"PHONE: {business_phone}")
         self.y += self.line_height
-        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:<20}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
+        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:>30}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
         self.y += self.line_height
         self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
         self.y += self.line_height
-        self.printer_dc.TextOut(self.x, self.y, "{:<15} {:>25} {:>30}".format("ITEM", "QUANTITY", "AMT"))
+        self.printer_dc.TextOut(self.x, self.y, "{:<15} {:>30} {:>25}".format("ITEM", "QUANTITY", "AMT"))
         self.y += self.line_height
 
         # Iterate Over the Orders
         for orders in self.normalOrders:
             try:
                 if orders:
-                    self.printer_dc.TextOut(self.x, self.y, f"{orders.name: <15} {orders.quantity: >20} { (orders.price * orders.quantity): >30}")
+                    self.printer_dc.TextOut(self.x, self.y, f"{orders.name: <15} {orders.quantity: >30} { (orders.price * orders.quantity): >30}")
                     self.y += self.line_height
                     self.defy += len(self) // 8
                 else:

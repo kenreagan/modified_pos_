@@ -3,7 +3,6 @@ import tkinter
 class CalcFrame(tkinter.Frame):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.totalVals = self.get
 		self.calcKeysConfig = {
 			'ipadx':29,
 			'ipady': 29,

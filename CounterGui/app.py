@@ -20,7 +20,7 @@ import datetime
 from Frames.calculator import CalcFrame
 from Frames.stylings import FoodImage
 from Frames.keyboard import Keyboard
-
+import uuid
 import time
 
 warnings.filterwarnings("ignore")
@@ -201,6 +201,7 @@ class Main(tkinter.Tk):
         self.emailLabel.grid(sticky=tkinter.W)
 
         self.emailEntry = tkinter.Entry(self.loginFrame, relief=tkinter.SUNKEN, width=42)
+        self.emailEntry.focus()
         self.emailEntry.grid(**self.loginStyling)
 
         self.passwordLabel = tkinter.Label(self.loginFrame, text="Password", **self.fontConfig)
@@ -512,8 +513,6 @@ class Main(tkinter.Tk):
         if len(self.orderQueue) > 0:
             self.orderQueue.clearOrders("Normal")
 
-            if self.orderTreeview:
-                self.reloadOrderTreeView()
         # Disable the print button
         self.printButton['state'] = tkinter.DISABLED
         self.holdButton['state'] = tkinter.DISABLED
@@ -605,7 +604,15 @@ class Main(tkinter.Tk):
         self.clientOrders = requests.get(f"http://{CLIENT_IP}/orders", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
         if self.clientOrders.status_code == 200:
             # Add orders to the treeview
-            self.clientOrderTree.insert(0, 0, ())
+            for orders in self.clientOrders.json()['orders']:
+                    self.clientOrderTree.insert("", tkinter.END, values=(orders['date'],
+                        orders['id'],
+                        sum([item['quantity'] for item in orders['ordered_item']]),
+                        sum([item['price'] * item['quantity'] for item in orders['ordered_item']]),
+                        orders['status'],
+                        orders['payment_status']
+                    )
+                )
         else:
             messagebox.showerror("Error Fetching orders", "There seems to be an error fetching the products please contact the adminstrator")
 
@@ -652,7 +659,7 @@ class Main(tkinter.Tk):
         assert self.req.status_code == 200
         order_item =  self.req.json()
         # Add item to order Queue
-        order = ProductQueueAbc(name=order_item['name'], price=order_item['price'])
+        order = ProductQueueAbc(id=item_id, name=order_item['name'], price=order_item['price'])
         self.orderQueue.addOrder(order)
         self.reloadOrderTreeView()
 
@@ -666,7 +673,6 @@ class Main(tkinter.Tk):
         self.updateProgressBar(f"http://{CLIENT_IP}/products/{item_id}")
 
     def reloadOrderTreeView(self):
-
         self.orderTreeview.delete(*self.orderTreeview.get_children())
         for items in self.orderQueue.normalOrders:
             if items:
@@ -729,7 +735,7 @@ class Main(tkinter.Tk):
         # Check for items in the Queue
         for elements in self.orderQueue.normalOrders:
             if elements:
-                self.orderTreeview.insert("", tkinter.END, (elements.name, elements.quantity, elements.price))
+                self.orderTreeview.insert("", tkinter.END, values=(elements.name, elements.quantity, elements.price))
         # Bind Event to treeview
         self.orderTreeview.bind("<Button-3>", self.ManageOrders)
 
@@ -743,6 +749,7 @@ class Main(tkinter.Tk):
     def AddQueue(self):
         # Prompt for client Details
         self.queueWindow = tkinter.Toplevel()
+        self.queueWindow.resizable((0,0))
         self.queueWindow.title("Queue Order")
 
         self.tableNumberLabel = tkinter.Label(self.queueWindow, text="Table No.")
@@ -779,14 +786,16 @@ class Main(tkinter.Tk):
         )
         # Post order with status unpaid
         self.Orderpayload = {
+            "id": self.order_id,
             "status": "incomplete",
             "business_id": CLIENT_BUSINESS['business'][0]["id"],
             "ordered_item": [
                     {
-                        "name": item.name,
-                        "Quantity": item.quantity,
-                        "price": item.price
-                } for item in self.orderQueue.normalOrders
+                        "quantity": item.quantity,
+                        "price": item.price,
+                        "order_id": self.order_id,
+                        "product_id": self.getProductId(item.name)
+                } for item in self.orderQueue.normalOrders if item
             ]
         }
         
@@ -816,26 +825,38 @@ class Main(tkinter.Tk):
         for widgets in self.midnav.winfo_children():
             widgets.destroy()
 
-    def printReceipt(self):
-        # Create order item and post to server
+    def getProductId(self, name) -> str:
+        req = requests.get(f"http://{CLIENT_IP}/products?name={name}")
 
+        if req.status_code == 200:
+            return req.json()['id']
+
+    def printReceipt(self):
+        """
+            Validation for the Cash given
+        """
+
+        # Create order item and post to server
         # Loop over the queue item
+        self.order_id = uuid.uuid4().hex
         self.completeOrderPayload = {
+            "id": self.order_id,
             "status": "completed",
             "payment_mode": "Cash",
             "business_id": CLIENT_BUSINESS['business'][0]["id"],
             "ordered_item": [
                     {
-                        "name": item.name,
-                        "Quantity": item.quantity,
-                        "price": item.price
-                } for item in self.orderQueue.normalOrders
+                        "quantity": item.quantity,
+                        "price": item.price,
+                        "order_id": self.order_id,
+                        "product_id": item.id
+                } for item in self.orderQueue.normalOrders if item
             ]
         }
 
-        self.orderRequest = requests.post(f"https://{CLIENT_IP}/orders", json=self.completeOrderPayload)
+        self.orderRequest = requests.post(f"http://{CLIENT_IP}/orders", json=self.completeOrderPayload)
 
-        if self.orderRequest.status_code == 200:
+        if self.orderRequest.status_code == 201:
             self.orderQueue.printReceipt(
                 BUSINESS_NAME,
                 BUSINESS_PHONE,
@@ -843,6 +864,9 @@ class Main(tkinter.Tk):
                 self.calculator.getAmount(),
                 STAFF
             )
+            #  Clear The order from the queue
+            self.clearOrders()
+            self.viewCustomer()
         else:
             messagebox.showerror("Error generating receipt", "Error Printing receipt")
 
