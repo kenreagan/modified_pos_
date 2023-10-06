@@ -47,9 +47,16 @@ class OrderQueue:
     def addOrder(self, order: Optional[T]):
         # Check the instance of the order
         if isinstance(order, OrderedQueueAbc):
-            for i in self.pendingOrders:
-                if i.phone_number == order.phone_number:
-                    i.price += order.price
+            if self.is_empty("Pending"):
+                    self.pendingOrders.appendleft(order)
+            else:
+                for orders in self.pendingOrders:
+                    try:
+                        if orders.phone_number == order.phone_number:
+                            orders.price += order.price
+                            order = None
+                    except:
+                        continue
                 else:
                     self.pendingOrders.append(order)
         elif isinstance(order, ProductQueueAbc):
