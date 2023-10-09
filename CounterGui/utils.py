@@ -216,7 +216,7 @@ class OrderQueue:
         self.y += self.line_height
         self.printer_dc.TextOut(180, self.y, f"PHONE: {business_phone}")
         self.y += self.line_height
-        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:>30}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
+        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:>10}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
         self.y += self.line_height
         self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
         self.y += self.line_height

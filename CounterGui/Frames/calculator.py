@@ -11,8 +11,8 @@ class CalcFrame(tkinter.Frame):
 		}
 
 		self.calcFont = {
-			'font': ("Dejavu Sans",  10, 'bold')
-			# 'bg':'#bfbfbf'
+			'font': ("Dejavu Sans",  10, 'bold'),
+			'bg':'#1aff1a'
 		}
 		# create buttons on Order Field
 		self.EntryFrame = tkinter.Frame(self)

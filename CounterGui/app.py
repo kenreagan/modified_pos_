@@ -46,7 +46,7 @@ PUBLISHABLE_KEY = os.environ.get("PUBLISHABLE_KEY")
 # PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
 
 # load Business
-client_business_req = requests.get(f"http://{CLIENT_IP}/business?name={BUSINESS_NAME}")
+client_business_req = requests.get(f"https://{CLIENT_IP}/business?name={BUSINESS_NAME}")
 
 if client_business_req.status_code == 200:
     CLIENT_BUSINESS = client_business_req.json()
@@ -103,8 +103,8 @@ class Main(tkinter.Tk):
     def loginUser(self) -> None:
         global AUTH_TOKEN 
         # Send request to server
-        self.authResponse = requests.post(f"http://{CLIENT_IP}/staff/login", json=self.fetchAuthPayload())
-
+        self.authResponse = requests.post(f"https://{CLIENT_IP}/staff/login", json=self.fetchAuthPayload())
+        self.keyboard.destroy()
         if self.authResponse.status_code == 200:
             AUTH_TOKEN = self.authResponse.json()['token']
             self.startApp()
@@ -201,13 +201,16 @@ class Main(tkinter.Tk):
         self.emailLabel.grid(sticky=tkinter.W)
 
         self.emailEntry = tkinter.Entry(self.loginFrame, relief=tkinter.SUNKEN, width=42)
-        self.emailEntry.focus()
+        self.emailEntry.bind("<FocusIn>", self.toogleKeyboard)
+        self.emailEntry.bind("<FocusOut>", self.deleteKeyBoard)
         self.emailEntry.grid(**self.loginStyling)
 
         self.passwordLabel = tkinter.Label(self.loginFrame, text="Password", **self.fontConfig)
         self.passwordLabel.grid(sticky=tkinter.W)
 
         self.passwordEntry = tkinter.Entry(self.loginFrame, relief=tkinter.SUNKEN , show="*", width=42)
+        self.passwordEntry.bind("<FocusIn>", self.toogleKeyboard)
+        self.passwordEntry.bind("<FocusOut>", self.deleteKeyBoard)
         self.passwordEntry.grid(**self.loginStyling)
 
         self.signInButton = tkinter.Button(self.loginFrame,
@@ -345,9 +348,9 @@ class Main(tkinter.Tk):
                 exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
         if isinstance(CLIENT_BUSINESS, dict):
-            self.orderCommodities = requests.get(f"http://{CLIENT_IP}/products")
+            self.orderCommodities = requests.get(f"https://{CLIENT_IP}/products")
 
-            self.updateProgressBar(f"http://{CLIENT_IP}/products")
+            self.updateProgressBar(f"https://{CLIENT_IP}/products")
 
             if self.orderCommodities.status_code != 200:
                  messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
@@ -387,7 +390,7 @@ class Main(tkinter.Tk):
         self.refreshImage = Image.open('./icons/refreshicon.png').resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.refreshIcon = ImageTk.PhotoImage(self.refreshImage)
 
-        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"http://{CLIENT_IP}/orders"), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
+        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"https://{CLIENT_IP}/orders"), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
         self.reloadBtn.grid(row=0, column=3, ipady=6, pady=5, ipadx=54)
 
         ##### Orders Tree view
@@ -601,7 +604,7 @@ class Main(tkinter.Tk):
         self.clientOrderTree.grid(padx=10)
 
         # Fetch the orders
-        self.clientOrders = requests.get(f"http://{CLIENT_IP}/orders", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+        self.clientOrders = requests.get(f"https://{CLIENT_IP}/orders", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
         if self.clientOrders.status_code == 200:
             # Add orders to the treeview
             for orders in self.clientOrders.json()['orders']:
@@ -655,7 +658,7 @@ class Main(tkinter.Tk):
 
     def addItem(self, item_id):
         # Fetch the product with id
-        self.req = requests.get(f"http://{CLIENT_IP}/products/{item_id}")    
+        self.req = requests.get(f"https://{CLIENT_IP}/products/{item_id}")    
         assert self.req.status_code == 200
         order_item =  self.req.json()
         # Add item to order Queue
@@ -670,7 +673,7 @@ class Main(tkinter.Tk):
         self.cashInput['state'] = tkinter.NORMAL
         self.mpesaInput['state'] = tkinter.NORMAL
 
-        self.updateProgressBar(f"http://{CLIENT_IP}/products/{item_id}")
+        self.updateProgressBar(f"https://{CLIENT_IP}/products/{item_id}")
 
     def reloadOrderTreeView(self):
         self.orderTreeview.delete(*self.orderTreeview.get_children())
@@ -713,6 +716,13 @@ class Main(tkinter.Tk):
             # self.eval("tk::PlaceWindow . Center")
             self.promptButton = tkinter.Button(self.clientWindow, text="Prompt Payment", command=self.promptMpesa, **self.buttonConfig)
             self.promptButton.grid(row=2, column=0)
+
+    def toogleKeyboard(self, event):
+        self.keyboard = Keyboard(self, event.widget)
+        self.keyboard.place(x=16, y=550)
+
+    def deleteKeyBoard(self, event):
+        self.keyboard.destroy()
 
     def loadCustomer(self):
         pass
@@ -799,7 +809,7 @@ class Main(tkinter.Tk):
             ]
         }
         
-        self.order = requests.post(f"http://{CLIENT_IP}/orders", json=self.Orderpayload)
+        self.order = requests.post(f"https://{CLIENT_IP}/orders", json=self.Orderpayload)
 
         if self.order.status_code == 200:
             # Pop the Item from the queue
@@ -826,7 +836,7 @@ class Main(tkinter.Tk):
             widgets.destroy()
 
     def getProductId(self, name) -> str:
-        req = requests.get(f"http://{CLIENT_IP}/products?name={name}")
+        req = requests.get(f"https://{CLIENT_IP}/products?name={name}")
 
         if req.status_code == 200:
             return req.json()['id']
@@ -854,7 +864,7 @@ class Main(tkinter.Tk):
             ]
         }
 
-        self.orderRequest = requests.post(f"http://{CLIENT_IP}/orders", json=self.completeOrderPayload)
+        self.orderRequest = requests.post(f"https://{CLIENT_IP}/orders", json=self.completeOrderPayload)
 
         if self.orderRequest.status_code == 201:
             self.orderQueue.printReceipt(
@@ -878,9 +888,11 @@ class Main(tkinter.Tk):
         self.inputFrame.grid(row=0, column=0)
 
         self.searchFrame = tkinter.Entry(self.inputFrame, width=60)
+        self.searchFrame.bind("<FocusIn>", self.toogleKeyboard)
+        self.searchFrame.bind("<FocusOut>", self.deleteKeyBoard)
         self.searchFrame.grid(row=0, column=0, ipady=7)
 
-        self.searchBtn = tkinter.Button(self.inputFrame, width=17, text="Search Food", relief=tkinter.GROOVE)
+        self.searchBtn = tkinter.Button(self.inputFrame, width=17, text="Search Food", relief=tkinter.GROOVE, command=self.filterProducts)
         self.searchBtn.grid(row=0, column=1, ipady=5, padx=3)
 
         self.searchResponseFrame = tkinter.Frame(self.midnav)
@@ -900,6 +912,9 @@ class Main(tkinter.Tk):
         self.searchResponse.heading("Price", text="Price")
         self.searchResponse.column("Name", width=95)
         self.searchResponse.grid(row=0, column=0)
+
+    def filterProducts(self):
+        return
 
     def run(self):
         self.mainloop()
