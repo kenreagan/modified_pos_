@@ -37,16 +37,18 @@ load_dotenv(CONFIG_FILE_PATH)
 
 BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
 BUSINESS_PHONE = os.environ.get("BUSINESS_PHONE")
+BUSINESS_ID = os.environ.get("BUSINESS_ID")
 BUSINESS_LOCATION = os.environ.get("BUSINESS_LOCATION")
 CLIENT_IP = os.environ.get("CLIENT_IP")
 IMAGE_SZ = (15, 15)
 CLIENT_BUSINESS = None
+AUTH_TOKEN = os.environ.get('AUTH_TOKEN')
 INTASEND_TOKEN = os.environ.get("INTASEND_TOKEN")
 PUBLISHABLE_KEY = os.environ.get("PUBLISHABLE_KEY")
 # PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
 
 # load Business
-client_business_req = requests.get(f"https://{CLIENT_IP}/business?name={BUSINESS_NAME}")
+client_business_req = requests.get(f"https://{CLIENT_IP}/business?name={BUSINESS_NAME}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
 
 if client_business_req.status_code == 200:
     CLIENT_BUSINESS = client_business_req.json()
@@ -145,8 +147,6 @@ class Main(tkinter.Tk):
 
         self.foodManager = ttk.LabelFrame(self.bottomSettingsFrame, text="Manage Stock")
         self.foodManager.grid(row=0, column=0)
-
-        
 
         self.stockLevels = ttk.LabelFrame(self.bottomSettingsFrame, text="Stock Levels Manager")
         self.stockLevels.grid(row=1, column=0, pady=20, ipadx=4)
@@ -348,9 +348,9 @@ class Main(tkinter.Tk):
                 exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
         if isinstance(CLIENT_BUSINESS, dict):
-            self.orderCommodities = requests.get(f"https://{CLIENT_IP}/products")
+            self.orderCommodities = requests.get(f"https://{CLIENT_IP}/products?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
 
-            self.updateProgressBar(f"https://{CLIENT_IP}/products")
+            self.updateProgressBar(f"https://{CLIENT_IP}/products?business_id={BUSINESS_ID}")
 
             if self.orderCommodities.status_code != 200:
                  messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
@@ -390,7 +390,7 @@ class Main(tkinter.Tk):
         self.refreshImage = Image.open('./icons/refreshicon.png').resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.refreshIcon = ImageTk.PhotoImage(self.refreshImage)
 
-        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"https://{CLIENT_IP}/orders"), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
+        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
         self.reloadBtn.grid(row=0, column=3, ipady=6, pady=5, ipadx=54)
 
         ##### Orders Tree view
@@ -604,7 +604,7 @@ class Main(tkinter.Tk):
         self.clientOrderTree.grid(padx=10)
 
         # Fetch the orders
-        self.clientOrders = requests.get(f"https://{CLIENT_IP}/orders", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+        self.clientOrders = requests.get(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
         if self.clientOrders.status_code == 200:
             # Add orders to the treeview
             for orders in self.clientOrders.json()['orders']:
@@ -809,7 +809,7 @@ class Main(tkinter.Tk):
             ]
         }
         
-        self.order = requests.post(f"https://{CLIENT_IP}/orders", json=self.Orderpayload)
+        self.order = requests.post(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}, json=self.Orderpayload)
 
         if self.order.status_code == 200:
             # Pop the Item from the queue
@@ -836,7 +836,8 @@ class Main(tkinter.Tk):
             widgets.destroy()
 
     def getProductId(self, name) -> str:
-        req = requests.get(f"https://{CLIENT_IP}/products?name={name}")
+        # Add auth to headers
+        req = requests.get(f"https://{CLIENT_IP}/products?name={name}&business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
 
         if req.status_code == 200:
             return req.json()['id']
@@ -864,7 +865,7 @@ class Main(tkinter.Tk):
             ]
         }
 
-        self.orderRequest = requests.post(f"https://{CLIENT_IP}/orders", json=self.completeOrderPayload)
+        self.orderRequest = requests.post(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}, json=self.completeOrderPayload)
 
         if self.orderRequest.status_code == 201:
             self.orderQueue.printReceipt(
@@ -913,8 +914,6 @@ class Main(tkinter.Tk):
         self.searchResponse.column("Name", width=95)
         self.searchResponse.grid(row=0, column=0)
 
-    def filterProducts(self):
-        return
 
     def run(self):
         self.mainloop()
