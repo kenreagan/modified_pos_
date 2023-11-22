@@ -25,40 +25,31 @@ import time
 
 warnings.filterwarnings("ignore")
 
-CONFIG_FILE_PATH = os.path.join(
-        os.path.abspath(
-            os.path.dirname(
-                __file__
-        )
-    ), 'config.env'    
-)
+BUSINESS_NAME="The Herb"
+BUSINESS_ID="ecee660334be46459036aa8ab4e39d43"
+BUSINESS_PHONE="+254746789424"
+BUSINESS_LOCATION="SEKENANI NAROK"
+CLIENT_IP="api.mutabletech.co.ke"
+INTASEND_TOKEN="ISSecretKey_test_06d12478-364b-4a73-9aa7-a462aca782b1"
+PUBLISHABLE_KEY="ISPubKey_test_71a7a0ba-b1ee-4432-8ad1-4d80e5dd1409"
+AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODY4MzYzMzUsImlhdCI6MTcwMDQyOTEzNSwic3ViIjoiMmY2MjFiYjJjZTZmNGU4NmE1N2I2OTVmYjdhMDI3ZjIifQ.0cZlGwpxjnNy0UTd_Xbzcu1ljHRxy5i_356pY5zHlJo"
 
-load_dotenv(CONFIG_FILE_PATH)
-
-BUSINESS_NAME = os.environ.get("BUSINESS_NAME")
-BUSINESS_PHONE = os.environ.get("BUSINESS_PHONE")
-BUSINESS_ID = os.environ.get("BUSINESS_ID")
-BUSINESS_LOCATION = os.environ.get("BUSINESS_LOCATION")
-CLIENT_IP = os.environ.get("CLIENT_IP")
 IMAGE_SZ = (15, 15)
 CLIENT_BUSINESS = None
-AUTH_TOKEN = os.environ.get('AUTH_TOKEN')
-INTASEND_TOKEN = os.environ.get("INTASEND_TOKEN")
-PUBLISHABLE_KEY = os.environ.get("PUBLISHABLE_KEY")
-# PRIVATE_KEY = os.environ.get("PRIVATE_KEY")
 
 # load Business
-client_business_req = requests.get(f"https://{CLIENT_IP}/business?name={BUSINESS_NAME}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+try:
+    client_business_req = requests.get(f"https://{CLIENT_IP}/business?name={BUSINESS_NAME}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+    if client_business_req.status_code == 200:
+        CLIENT_BUSINESS = client_business_req.json()
 
-if client_business_req.status_code == 200:
-    CLIENT_BUSINESS = client_business_req.json()
-
-
-PAYMENT_SERVICE = APIService(
-    token=INTASEND_TOKEN,
-    publishable_key=PUBLISHABLE_KEY,
-    test=True
-)
+    PAYMENT_SERVICE = APIService(
+        token=INTASEND_TOKEN,
+        publishable_key=PUBLISHABLE_KEY,
+        test=True
+    )
+except:
+    print("Connection error to server")
 
 class Main(tkinter.Tk):
     def __init__(self):
@@ -106,7 +97,10 @@ class Main(tkinter.Tk):
         global AUTH_TOKEN 
         # Send request to server
         self.authResponse = requests.post(f"https://{CLIENT_IP}/staff/login", json=self.fetchAuthPayload())
-        self.keyboard.destroy()
+        
+        if hasattr(self, 'keyboard'):
+            self.keyboard.destroy()
+
         if self.authResponse.status_code == 200:
             AUTH_TOKEN = self.authResponse.json()['token']
             self.startApp()
@@ -348,14 +342,16 @@ class Main(tkinter.Tk):
                 exec(f"self.item_{i}.grid(row=i, column=j, **self.btnConfig)")
 
         if isinstance(CLIENT_BUSINESS, dict):
-            self.orderCommodities = requests.get(f"https://{CLIENT_IP}/products?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+            headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}
+            self.orderCommodities = requests.get(f"https://{CLIENT_IP}/products/business/{BUSINESS_ID}")
 
-            self.updateProgressBar(f"https://{CLIENT_IP}/products?business_id={BUSINESS_ID}")
+
+            self.updateProgressBar(f"https://{CLIENT_IP}/products/business/{BUSINESS_ID}")
 
             if self.orderCommodities.status_code != 200:
                  messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
             else:
-                self.client_products = self.orderCommodities.json().get("products")
+                self.client_products = self.orderCommodities.json().get("products")[:12]
                 # Create Buttons
                 self.foodImage = Image.open("images/Food/" +random.choice(os.listdir("./images/Food/"))).resize((90, 90), resample=Image.LANCZOS)
                 self.foodImageIcon = ImageTk.PhotoImage(self.foodImage)
@@ -604,7 +600,7 @@ class Main(tkinter.Tk):
         self.clientOrderTree.grid(padx=10)
 
         # Fetch the orders
-        self.clientOrders = requests.get(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
+        self.clientOrders = requests.get(f"https://{CLIENT_IP}/orders/business/{BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})
         if self.clientOrders.status_code == 200:
             # Add orders to the treeview
             for orders in self.clientOrders.json()['orders']:
@@ -658,7 +654,7 @@ class Main(tkinter.Tk):
 
     def addItem(self, item_id):
         # Fetch the product with id
-        self.req = requests.get(f"https://{CLIENT_IP}/products/{item_id}")    
+        self.req = requests.get(f"https://{CLIENT_IP}/products/{item_id}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN})    
         assert self.req.status_code == 200
         order_item =  self.req.json()
         # Add item to order Queue
@@ -697,24 +693,26 @@ class Main(tkinter.Tk):
             self.loadEntries()
         
         if self.mpesaVar.get() == 1:
-            # Prepare intasend with Mpesa
+            # Work with stk Push
+
             # Initiate Entry for phone number
             if self.paymentVar.get() == 0:
-                self.AmountEntry['state'] = tkinter.DISABLED
+                if hasattr(self, "AmountEntry"):
+                    self.AmountEntry['state'] = tkinter.DISABLED
             
             self.clientWindow = tkinter.Toplevel()
-            self.clientWindow.title("Mpesa Stk Push")
-            self.clientWindow.geometry("400x350")
+            self.clientWindow.geometry("250x300")
+            self.clientWindow.title(f"{BUSINESS_NAME} Mpesa Request")
 
             ## Labels for the input
-            self.phoneNumberLabel = tkinter.Label(self.clientWindow, text="Phone Number")
-            self.phoneNumberLabel.grid(row=0, column=0, pady=10)
+            self.phoneNumberLabel = tkinter.Label(self.clientWindow, text="Enter Phone Number")
+            self.phoneNumberLabel.grid(row=0, column=0, pady=10, sticky=tkinter.W)
 
             self.phoneNumber = tkinter.Entry(self.clientWindow, width=40)
             self.phoneNumber.grid(row=1, column=0, ipady=10, pady=10)
 
             # self.eval("tk::PlaceWindow . Center")
-            self.promptButton = tkinter.Button(self.clientWindow, text="Prompt Payment", command=self.promptMpesa, **self.buttonConfig)
+            self.promptButton = tkinter.Button(self.clientWindow, text="Prompt Payment", relief=tkinter.GROOVE, command=self.promptMpesa)
             self.promptButton.grid(row=2, column=0)
 
     def toogleKeyboard(self, event):
@@ -759,7 +757,6 @@ class Main(tkinter.Tk):
     def AddQueue(self):
         # Prompt for client Details
         self.queueWindow = tkinter.Toplevel()
-        self.queueWindow.resizable((0,0))
         self.queueWindow.title("Queue Order")
 
         self.tableNumberLabel = tkinter.Label(self.queueWindow, text="Table No.")
@@ -795,10 +792,11 @@ class Main(tkinter.Tk):
             })
         )
         # Post order with status unpaid
+        self.order_id = uuid.uuid4().hex
         self.Orderpayload = {
             "id": self.order_id,
             "status": "incomplete",
-            "business_id": CLIENT_BUSINESS['business'][0]["id"],
+            "business_id": BUSINESS_ID,
             "ordered_item": [
                     {
                         "quantity": item.quantity,
@@ -809,7 +807,9 @@ class Main(tkinter.Tk):
             ]
         }
         
-        self.order = requests.post(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}, json=self.Orderpayload)
+        self.order = requests.post(f"https://{CLIENT_IP}/orders",
+                                    headers={'Authorization': 'Bearer %s'%AUTH_TOKEN},
+                                    json=self.Orderpayload)
 
         if self.order.status_code == 200:
             # Pop the Item from the queue
@@ -819,13 +819,19 @@ class Main(tkinter.Tk):
         else:
             messagebox.showerror("Order adding order", "Error order could not be created")
 
+    #  Load pending order
+
+    def loadPendingOrders(self, order_id: str):
+        # Load the pending order to normal order queue
+        pass
+
     def promptMpesa(self):
         # Pay for order -> Patch request to order class -> Post Request to Transactions class
         phone_number = self.phoneNumber.get()
         req = PAYMENT_SERVICE.collect.checkout(
                 phone_number=phone_number,
                 email="mutabletechke@gmail.com",
-                amount=10,
+                amount= self.orderQueue.getTotals(),#Add total orders amount
                 currency="KES",
                 comment=""
             )
@@ -854,7 +860,7 @@ class Main(tkinter.Tk):
             "id": self.order_id,
             "status": "completed",
             "payment_mode": "Cash",
-            "business_id": CLIENT_BUSINESS['business'][0]["id"],
+            "business_id": BUSINESS_ID,
             "ordered_item": [
                     {
                         "quantity": item.quantity,
@@ -916,7 +922,10 @@ class Main(tkinter.Tk):
 
 
     def run(self):
-        self.mainloop()
+        try:
+            self.mainloop()
+        except requests.exceptions.ConnectionError:
+            messagebox.showerror("Connection error", "Error connecting to server")
 
 if __name__ == '__main__':
     app = Main()

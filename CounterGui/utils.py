@@ -198,10 +198,30 @@ class OrderQueue:
         self.printer_dc.StartPage()
         self.printer_dc.SetTextAlign(win32con.TA_NOUPDATECP)
         self.printer_dc.SetBkMode(win32con.TRANSPARENT)
-        self.printer_dc.SelectObject(win32ui.CreateFont({
-            "name": "Exort Light",
-            "height": 24
-        }))
+        
+        self.regular_font = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 25,
+            "weight": 50,
+            'width':11
+        })
+
+        self.bold_font = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 48,
+            "weight": 700,
+            "width": 15
+        })
+        
+        self.total_fonts = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 30,
+            "weight": 700,
+            "width": 12
+        })
+
+        self.printer_dc.SelectObject(self.bold_font)
+
         self.x, self.y = 0, 0  
         self.line_height = 40
 
@@ -210,35 +230,51 @@ class OrderQueue:
         top_margin = 0
         bottom_margin = 0
 
-        self.printer_dc.TextOut(180, -5, f"{store_name.upper()} RESTAURANT")
+        self.printer_dc.TextOut(150, -5, f"{store_name.upper()} RESTAURANT")
         self.y += self.line_height
-        self.printer_dc.TextOut(200, self.y, f"{business_location}")
+        self.printer_dc.TextOut(180, self.y, f"{business_location}")
         self.y += self.line_height
-        self.printer_dc.TextOut(180, self.y, f"PHONE: {business_phone}")
         self.y += self.line_height
-        self.printer_dc.TextOut(self.x, self.y, "DATE: {:<25} {:^25} {:>10}".format(datetime.datetime.now().strftime("%D"), "TIME:", datetime.datetime.now().strftime("%H:%m:%S")))
+        self.printer_dc.TextOut(150, self.y, f"PHONE: {business_phone}")
         self.y += self.line_height
+        self.y += self.line_height
+        #  Switch to regular font
+        self.printer_dc.SelectObject(self.regular_font)
+        self.printer_dc.TextOut(self.x, self.y, "DATE")
+        self.printer_dc.TextOut(50, self.y, datetime.datetime.now().strftime("%D"))
+        self.printer_dc.TextOut(410, self.y, "TIME:")
+        self.printer_dc.TextOut(485, self.y, datetime.datetime.now().strftime("%H:%m:%S"))
+
+        self.y += self.line_height
+        self.printer_dc.SelectObject(self.bold_font)
         self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
         self.y += self.line_height
-        self.printer_dc.TextOut(self.x, self.y, "{:<15} {:>30} {:>25}".format("ITEM", "QUANTITY", "AMT"))
+        self.printer_dc.SelectObject(self.regular_font)
+        self.printer_dc.TextOut(self.x, self.y, "ITEM")
+        self.printer_dc.TextOut(200, self.y, "PRICE")
+        self.printer_dc.TextOut(385, self.y, "QTY")
+        self.printer_dc.TextOut(500, self.y, "VALUE")
         self.y += self.line_height
 
         # Iterate Over the Orders
-        for orders in self.normalOrders:
+        for elements in self.normalOrders:
             try:
-                if orders:
-                    self.printer_dc.TextOut(self.x, self.y, f"{orders.name: <15} {orders.quantity: >30} { (orders.price * orders.quantity): >30}")
+                if elements:
+                    self.printer_dc.TextOut(self.x, self.y, elements.name.upper())
+                    self.printer_dc.TextOut(180, self.y, f"sh {elements.price: .2f}")
+                    self.printer_dc.TextOut(385, self.y, f"x{elements.quantity}")
+                    self.printer_dc.TextOut(430, self.y, f"ksh {elements.quantity * elements.price: .2f}")
                     self.y += self.line_height
-                    self.defy += len(self) // 8
                 else:
                     continue
             except:
                 continue
-
-        self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
-        self.y += self.line_height
+        self.printer_dc.SelectObject(self.bold_font)
         self.printer_dc.TextOut(self.x, self.y,f"{'-'*100}")
         self.y += self.line_height
+
+        # Total Fonts
+        self.printer_dc.SelectObject(self.total_fonts)
         self.printer_dc.TextOut(self.x, self.y, f"TOTAL AMOUNT: {self.getTotals(): .2f}")
         self.y += self.line_height
         self.printer_dc.TextOut(self.x, self.y, f"TOTAL QUANTITY: {self.getQuantity()}")
@@ -255,10 +291,17 @@ class OrderQueue:
         self.y += self.line_height
         # Load image
         # self.add_img(self.printer_dc, "images/mutabletechpos.png")
+        self.printer_dc.SelectObject(self.bold_font)
+        self.printer_dc.TextOut(self.x, self.y, "PAYBILL: 522533")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, "ACCOUNT NUMBER: 5820877")
+        self.y += self.line_height
+        self.printer_dc.SelectObject(self.regular_font)
         self.printer_dc.TextOut(self.x, self.y, "system by mutable tech: info@mutabletech.co.ke")
         self.y += self.line_height
         self.printer_dc.TextOut(self.x, self.y, "visit us on mutabletech.co.ke")
         self.y += self.line_height
+        self.printer_dc.SelectObject(self.bold_font)
         self.printer_dc.TextOut(self.x, self.y, f"{'='*80}")
         self.printer_dc.EndPage()
         self.printer_dc.EndDoc()
