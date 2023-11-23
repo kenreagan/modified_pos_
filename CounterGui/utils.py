@@ -251,17 +251,16 @@ class OrderQueue:
         self.y += self.line_height
         self.printer_dc.SelectObject(self.regular_font)
         self.printer_dc.TextOut(self.x, self.y, "ITEM")
-        self.printer_dc.TextOut(200, self.y, "PRICE")
+        self.printer_dc.TextOut(250, self.y, "PRICE")
         self.printer_dc.TextOut(385, self.y, "QTY")
         self.printer_dc.TextOut(500, self.y, "VALUE")
         self.y += self.line_height
-
         # Iterate Over the Orders
         for elements in self.normalOrders:
             try:
                 if elements:
                     self.printer_dc.TextOut(self.x, self.y, elements.name.upper())
-                    self.printer_dc.TextOut(180, self.y, f"sh {elements.price: .2f}")
+                    self.printer_dc.TextOut(230, self.y, f"sh {elements.price: .2f}")
                     self.printer_dc.TextOut(385, self.y, f"x{elements.quantity}")
                     self.printer_dc.TextOut(430, self.y, f"ksh {elements.quantity * elements.price: .2f}")
                     self.y += self.line_height

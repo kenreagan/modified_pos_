@@ -351,7 +351,7 @@ class Main(tkinter.Tk):
             if self.orderCommodities.status_code != 200:
                  messagebox.showerror("Error fetching records", "Error fetching data, check server configurations")
             else:
-                self.client_products = self.orderCommodities.json().get("products")[:12]
+                self.client_products = random.choices(self.orderCommodities.json().get("products"), k=12)
                 # Create Buttons
                 self.foodImage = Image.open("images/Food/" +random.choice(os.listdir("./images/Food/"))).resize((90, 90), resample=Image.LANCZOS)
                 self.foodImageIcon = ImageTk.PhotoImage(self.foodImage)
@@ -899,7 +899,7 @@ class Main(tkinter.Tk):
         self.searchFrame.bind("<FocusOut>", self.deleteKeyBoard)
         self.searchFrame.grid(row=0, column=0, ipady=7)
 
-        self.searchBtn = tkinter.Button(self.inputFrame, width=17, text="Search Food", relief=tkinter.GROOVE, command=self.filterProducts)
+        self.searchBtn = tkinter.Button(self.inputFrame, width=17, text="Search Food", relief=tkinter.GROOVE, command=self.searchFood)
         self.searchBtn.grid(row=0, column=1, ipady=5, padx=3)
 
         self.searchResponseFrame = tkinter.Frame(self.midnav)
@@ -920,6 +920,8 @@ class Main(tkinter.Tk):
         self.searchResponse.column("Name", width=95)
         self.searchResponse.grid(row=0, column=0)
 
+    def searchFood(self):
+        return
 
     def run(self):
         try:
