@@ -96,16 +96,23 @@ class Main(tkinter.Tk):
     def loginUser(self) -> None:
         global AUTH_TOKEN 
         # Send request to server
-        self.authResponse = requests.post(f"https://{CLIENT_IP}/staff/login", json=self.fetchAuthPayload())
-        
-        if hasattr(self, 'keyboard'):
-            self.keyboard.destroy()
+        try:
+            self.authResponse = requests.post(f"https://{CLIENT_IP}/staff/login", json=self.fetchAuthPayload())
+            
+            if hasattr(self, 'keyboard'):
+                self.keyboard.destroy()
 
-        if self.authResponse.status_code == 200:
-            AUTH_TOKEN = self.authResponse.json()['token']
-            self.startApp()
-        else:
-            messagebox.showerror("Authentication Error", "Invalid Credentials, contact your adminstrator")
+            if self.authResponse.status_code == 200:
+                try:
+                    AUTH_TOKEN = self.authResponse.json()['token']
+                    self.startApp()
+                except KeyError as e:
+                    messagebox.showerror(f"Authentication Error: {e!r}", "Invalid Credentials, enter the correct credentials")
+            else:
+                messagebox.showerror("Authentication Error", "Invalid Credentials, contact your adminstrator")
+        except requests.ConnectionError as e:
+            messagebox.showerror("Error connecting to server", f"{e!r}")
+
         # self.startApp()
 
     def loadSettings(self):
@@ -359,7 +366,7 @@ class Main(tkinter.Tk):
                 if len(self.iteredProducts) > 0:
                     for i in range(len(self.iteredProducts)):
                         for j in range(0, len(self.iteredProducts[i])):
-                            t = self.iteredProducts[i][j]["name"]
+                            t = self.iteredProducts[i][j]["name"][:13]
                             y = self.iteredProducts[i][j]["id"]
                             # if self.iteredProducts[i][j]['image']:
                             #     exec("self.prodBtn_%d = tkinter.Button(self.products, image=FoodImage(self.iteredProducts[i][j]['image']).get(), compound=tkinter.BOTTOM, **self.midButtonConfig)"%i)
@@ -881,9 +888,20 @@ class Main(tkinter.Tk):
                 self.calculator.getAmount(),
                 STAFF
             )
+            # Print Kitchen Receipt
+            self.orderQueue.printKitchenReceipt(
+                BUSINESS_NAME,
+                BUSINESS_PHONE,
+                BUSINESS_LOCATION,
+                self.calculator.getAmount()
+            )
             #  Clear The order from the queue
             self.clearOrders()
             self.viewCustomer()
+
+            # Deselect AmountEntry checkbox
+            if self.paymentVar.get() == 1:
+                self.cashInput.deselect()
         else:
             messagebox.showerror("Error generating receipt", "Error Printing receipt")
 

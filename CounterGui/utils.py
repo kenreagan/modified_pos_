@@ -187,6 +187,112 @@ class OrderQueue:
         else:
             return order.name
 
+    def printKitchenReceipt(self, store_name, business_phone, business_location, amountGiven):
+        self.kitchenPrinter = r"\\HP\XP-80Kitchen"
+        self.hprinter = win32print.OpenPrinter(self.kitchenPrinter)
+        self.printer_info = win32print.GetPrinter(self.hprinter, 2)
+
+        self.printer_dc = win32ui.CreateDC()
+        self.printer_dc.CreatePrinterDC(self.kitchenPrinter)
+        self.printer_dc.StartDoc('Receipt')
+        self.printer_dc.StartPage()
+        self.printer_dc.SetTextAlign(win32con.TA_NOUPDATECP)
+        self.printer_dc.SetBkMode(win32con.TRANSPARENT)
+        
+        self.regular_font = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 25,
+            "weight": 50,
+            'width':11
+        })
+
+        self.bold_font = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 48,
+            "weight": 700,
+            "width": 15
+        })
+        
+        self.total_fonts = win32ui.CreateFont({
+            "name": "Courier New",
+            "height": 30,
+            "weight": 700,
+            "width": 12
+        })
+
+        self.printer_dc.SelectObject(self.bold_font)
+
+        self.x, self.y = 0, 0  
+        self.line_height = 40
+
+        left_margin = 0
+        right_margin = 0
+        top_margin = 0
+        bottom_margin = 0
+
+        # Generate receipt for both kitchen and counter
+
+        self.printer_dc.TextOut(150, -5, f"{store_name.upper()} RESTAURANT")
+        self.y += self.line_height
+        self.printer_dc.TextOut(180, self.y, f"{business_location}")
+        self.y += self.line_height
+        self.y += self.line_height
+        self.printer_dc.TextOut(150, self.y, f"PHONE: {business_phone}")
+        self.y += self.line_height
+        self.y += self.line_height
+        #  Switch to regular font
+        self.printer_dc.SelectObject(self.regular_font)
+        self.printer_dc.TextOut(self.x, self.y, "DATE")
+        self.printer_dc.TextOut(50, self.y, datetime.datetime.now().strftime("%D"))
+        self.printer_dc.TextOut(410, self.y, "TIME:")
+        self.printer_dc.TextOut(485, self.y, datetime.datetime.now().strftime("%H:%m:%S"))
+
+        self.y += self.line_height
+        self.printer_dc.SelectObject(self.bold_font)
+        self.printer_dc.TextOut(self.x, self.y, f"{'-'*100}")
+        self.y += self.line_height
+        self.printer_dc.SelectObject(self.regular_font)
+        self.printer_dc.TextOut(self.x, self.y, "ITEM")
+        self.printer_dc.TextOut(250, self.y, "PRICE")
+        self.printer_dc.TextOut(385, self.y, "QTY")
+        self.printer_dc.TextOut(500, self.y, "VALUE")
+        self.y += self.line_height
+        # Iterate Over the Orders
+        for elements in self.normalOrders:
+            try:
+                if elements:
+                    self.printer_dc.TextOut(self.x, self.y, elements.name.upper())
+                    self.printer_dc.TextOut(230, self.y, f"sh {elements.price: .2f}")
+                    self.printer_dc.TextOut(385, self.y, f"x{elements.quantity}")
+                    self.printer_dc.TextOut(430, self.y, f"ksh {elements.quantity * elements.price: .2f}")
+                    self.y += self.line_height
+                else:
+                    continue
+            except:
+                continue
+        self.printer_dc.SelectObject(self.bold_font)
+        self.printer_dc.TextOut(self.x, self.y,f"{'-'*100}")
+        self.y += self.line_height
+
+        # Total Fonts
+        self.printer_dc.SelectObject(self.total_fonts)
+        self.printer_dc.TextOut(self.x, self.y, f"TOTAL AMOUNT: {self.getTotals(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"TOTAL QUANTITY: {self.getQuantity()}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"AMOUNT PAID: {amountGiven: .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"BALANCE: {float(amountGiven) - self.getTotals(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"VAT TAX:  {self.getTax(): .2f}")
+        self.y += self.line_height
+        self.printer_dc.TextOut(self.x, self.y, f"{'='*80}")
+        self.y += self.line_height
+    
+        self.printer_dc.EndPage()
+        self.printer_dc.EndDoc()
+        self.printer_dc.DeleteDC()
+
     def printReceipt(self, store_name, business_phone, business_location, amountGiven, staff):
         self.printer = win32print.GetDefaultPrinter()
         self.hprinter = win32print.OpenPrinter(self.printer)
@@ -229,6 +335,8 @@ class OrderQueue:
         right_margin = 0
         top_margin = 0
         bottom_margin = 0
+
+        # Generate receipt for both kitchen and counter
 
         self.printer_dc.TextOut(150, -5, f"{store_name.upper()} RESTAURANT")
         self.y += self.line_height
