@@ -48,8 +48,8 @@ try:
         publishable_key=PUBLISHABLE_KEY,
         test=True
     )
-except:
-    print("Connection error to server")
+except requests.ConnectionError as e:
+    messagebox.showerror("Connection error to server", f"{e!r}")
 
 class Main(tkinter.Tk):
     def __init__(self):
@@ -60,6 +60,10 @@ class Main(tkinter.Tk):
         elif sys.platform == "linux"  or sys.platform == "linux2":
             self.geometry("1366x780")
         
+        # Add logo
+        self.app_logo = tkinter.PhotoImage(file="./icons/logo.png")
+        self.iconphoto(False, self.app_logo)
+
         self.fontConfig = {
             "font": ("DejaVu Sans", 9)
         }
@@ -70,6 +74,13 @@ class Main(tkinter.Tk):
             'relief': tkinter.GROOVE,
             "highlightthickness": 0,
             'bg': 'white',
+            'takefocus': False
+        }
+
+        self.sideBtnConfig = {
+            "font": ("Dejavu Sans",  9),
+            'relief': tkinter.GROOVE,
+            "highlightthickness": 0,
             'takefocus': False
         }
         # self.configure(bg='white')
@@ -202,6 +213,7 @@ class Main(tkinter.Tk):
         self.emailLabel.grid(sticky=tkinter.W)
 
         self.emailEntry = tkinter.Entry(self.loginFrame, relief=tkinter.SUNKEN, width=42)
+        self.emailEntry.focus()
         self.emailEntry.bind("<FocusIn>", self.toogleKeyboard)
         self.emailEntry.bind("<FocusOut>", self.deleteKeyBoard)
         self.emailEntry.grid(**self.loginStyling)
@@ -230,13 +242,13 @@ class Main(tkinter.Tk):
         self.bottomFrame = tkinter.Frame(self)
         self.bottomFrame.grid(row=1, column=0)
 
-        self.statusBar = ttk.LabelFrame(self, text=f"{BUSINESS_NAME}", relief=tkinter.RIDGE)
+        self.statusBar = ttk.LabelFrame(self, text=BUSINESS_NAME, relief=tkinter.RIDGE)
         self.statusBar.grid(row=2, column=0, ipadx=2, ipady=5)
 
         self.loadStatus()
         
         # Frames for the sections
-        self.side_nav = tkinter.Frame(self.bottomFrame, bg="white", relief=tkinter.RAISED)
+        self.side_nav = tkinter.Frame(self.bottomFrame, relief=tkinter.RAISED)
         self.side_nav.grid(row=0, column=0)
         
         self.sidenavConfig = {
@@ -247,48 +259,48 @@ class Main(tkinter.Tk):
         self.homePhoto = Image.open("icons/home.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.homeIcon = ImageTk.PhotoImage(self.homePhoto)
 
-        self.homeButton = tkinter.Button(self.side_nav, width=7, text="Home", image=self.homeIcon, compound=tkinter.TOP, command=self.startApp, **self.buttonConfig)
+        self.homeButton = tkinter.Button(self.side_nav, width=7, text="Home", image=self.homeIcon, compound=tkinter.TOP, command=self.startApp, **self.sideBtnConfig)
         self.homeButton.grid(row=0, column=0, **self.sidenavConfig)
     
         self.clientsPhoto = Image.open("icons/clients.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.clientsIcon = ImageTk.PhotoImage(self.clientsPhoto)
 
-        self.customerButton = tkinter.Button(self.side_nav, width=7, image=self.clientsIcon,compound=tkinter.TOP, text="Clients", **self.buttonConfig)
+        self.customerButton = tkinter.Button(self.side_nav, width=7, image=self.clientsIcon,compound=tkinter.TOP, text="Clients", **self.sideBtnConfig)
         self.customerButton.grid(row=1, column=0, **self.sidenavConfig)
 
         self.cashierPhoto = Image.open("icons/cashier.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.cashierIcon = ImageTk.PhotoImage(self.cashierPhoto)
 
-        self.cashierButton = tkinter.Button(self.side_nav, width=7, image=self.cashierIcon, compound=tkinter.TOP, text="Cashier", **self.buttonConfig)
+        self.cashierButton = tkinter.Button(self.side_nav, width=7, image=self.cashierIcon, compound=tkinter.TOP, text="Cashier", **self.sideBtnConfig)
         self.cashierButton.grid(row=2, column=0,**self.sidenavConfig)
         
         self.ordersPhoto = Image.open("icons/orders.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.ordersIcon = ImageTk.PhotoImage(self.ordersPhoto)
 
-        self.tablesButton = tkinter.Button(self.side_nav, width=7, image=self.ordersIcon, compound=tkinter.TOP, text="Orders", **self.buttonConfig, command=self.viewOrders)
+        self.tablesButton = tkinter.Button(self.side_nav, width=7, image=self.ordersIcon, compound=tkinter.TOP, text="Orders", **self.sideBtnConfig, command=self.viewOrders)
         self.tablesButton.grid(row=3, column=0, **self.sidenavConfig)
         
         self.reportPhoto = Image.open("icons/report.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.reportIcon = ImageTk.PhotoImage(self.reportPhoto)
 
-        self.menuButton = tkinter.Button(self.side_nav, width=7, image=self.reportIcon, compound=tkinter.TOP, text="Menu", command=self.loadMenu, **self.buttonConfig)
+        self.menuButton = tkinter.Button(self.side_nav, width=7, image=self.reportIcon, compound=tkinter.TOP, text="Menu", command=self.loadMenu, **self.sideBtnConfig)
         self.menuButton.grid(row=4, column=0,**self.sidenavConfig)
         
         self.settingsPhoto = Image.open("icons/settings.png").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.settingsIcon = ImageTk.PhotoImage(self.settingsPhoto)
 
-        self.settingsButton = tkinter.Button(self.side_nav, width=7, text="Settings", image=self.settingsIcon, compound=tkinter.TOP, **self.buttonConfig, command=self.loadSettings)
+        self.settingsButton = tkinter.Button(self.side_nav, width=7, text="Settings", image=self.settingsIcon, compound=tkinter.TOP, **self.sideBtnConfig, command=self.loadSettings)
         self.settingsButton.grid(row=5, column=0, **self.sidenavConfig)
 
-        self.nonButton = tkinter.Button(self.side_nav, text="", width=5, **self.buttonConfig)
-        self.nonButton.grid(row=6, column=0, ipady=103, ipadx=15)
+        self.nonButton = tkinter.Button(self.side_nav, text="", width=5, **self.sideBtnConfig)
+        self.nonButton.grid(row=6, column=0, ipady=90, ipadx=10)
         
         self.logoutPhoto = Image.open("icons/logout.jpg").resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.logoutIcon = ImageTk.PhotoImage(self.logoutPhoto)
 
         self.quitButton = tkinter.Button(self.side_nav, text="Logout",
-            width=5, image=self.logoutIcon, compound=tkinter.TOP,
-            command=self.logoutUser, **self.buttonConfig
+            width=7, image=self.logoutIcon, compound=tkinter.TOP,
+            command=self.logoutUser, **self.sideBtnConfig
         )
         self.quitButton.grid(row=7, column=0, **self.sidenavConfig)
 
@@ -393,8 +405,11 @@ class Main(tkinter.Tk):
         self.refreshImage = Image.open('./icons/refreshicon.png').resize(IMAGE_SZ, resample=Image.LANCZOS)
         self.refreshIcon = ImageTk.PhotoImage(self.refreshImage)
 
-        self.reloadBtn = tkinter.Button(self.customermanager, command=lambda: self.updateProgressBar(f"https://{CLIENT_IP}/orders?business_id={BUSINESS_ID}", headers={'Authorization': 'Bearer %s'%AUTH_TOKEN}), image=self.refreshIcon, text="refresh", compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
-        self.reloadBtn.grid(row=0, column=3, ipady=6, pady=5, ipadx=54)
+        self.makeOrderBtn = tkinter.Button(self.customermanager,
+                            command=self.makeOrder,
+                            image=self.cashierIcon, text="Make Order",
+                            compound=tkinter.LEFT, relief=tkinter.GROOVE, width=17, **self.fontConfig)
+        self.makeOrderBtn.grid(row=0, column=3, ipady=6, pady=5, ipadx=54)
 
         ##### Orders Tree view
         self.style = ttk.Style()
@@ -489,8 +504,22 @@ class Main(tkinter.Tk):
         self.cancelImg = Image.open("icons/cancel.png").resize((10, 10), resample=Image.LANCZOS)
         self.cancelIcon= ImageTk.PhotoImage(self.cancelImg)
 
-        self.clearOrderBtn = tkinter.Button(self.paymentFrame, image=self.cancelIcon, state=tkinter.DISABLED, relief=tkinter.GROOVE, compound=tkinter.TOP, text="Clear Entry", command=self.clearOrders)
+        self.clearOrderBtn = tkinter.Button(self.paymentFrame, image=self.cancelIcon,
+            state=tkinter.DISABLED,
+            relief=tkinter.GROOVE,
+            compound=tkinter.TOP, text="Clear Entry", command=self.clearOrders)
         self.clearOrderBtn.grid(row=0, column=3, ipady=5, ipadx=20, padx=5)
+
+    def makeOrder(self):
+        # Print Kitchen Receipt
+        self.orderQueue.printKitchenReceipt(
+            BUSINESS_NAME,
+            BUSINESS_PHONE,
+            BUSINESS_LOCATION
+        )
+        #  Clear The order from the queue
+        self.clearOrders()
+        self.reloadOrderTreeView()
 
     def ManageOrders(self, event):
         self.menuPopup = tkinter.Menu(self, tearoff=0)
@@ -498,7 +527,7 @@ class Main(tkinter.Tk):
 
         if iid:
             self.orderTreeview.selection_set(iid)
-            self.menuPopup.add_command(label="Delete order", command=lambda: self.deleteOrder(self.orderTreeview.item(iid)['values'][0]))
+            self.menuPopup.add_command(label="Delete Selection", command=lambda: self.deleteOrder(self.orderTreeview.item(iid)['values'][0]))
             self.menuPopup.tk_popup(event.x_root, event.y_root, 0)
 
     def deleteOrder(self, order):
@@ -528,6 +557,8 @@ class Main(tkinter.Tk):
 
         self.resetTotals()
 
+        self.reloadOrderTreeView()
+
     def updateProgressBar(self, url):
         while True:
             # Time order fetching request
@@ -545,39 +576,39 @@ class Main(tkinter.Tk):
         self.searchIcon = ImageTk.PhotoImage(self.searchImage)
 
         self.searchBtn= tkinter.Button(self.statusBar, command=self.searchMenu, compound=tkinter.LEFT, image=self.searchIcon, relief=tkinter.GROOVE, text="Search", width=10)
-        self.searchBtn.grid(column=0, row=0, ipady=1, ipadx=30)
+        self.searchBtn.grid(column=0, row=0, ipady=3, ipadx=45)
 
         # Fill details of the Logged in Staff
         self.loggedInUser = tkinter.Button(self.statusBar, compound=tkinter.LEFT, relief=tkinter.GROOVE, text=STAFF, width=19)
-        self.loggedInUser.grid(column=1, row=0, ipady=1)
+        self.loggedInUser.grid(column=1, row=0, ipady=3)
 
         # Display the loaded data size
         self.dataButtton = tkinter.Button(self.statusBar, relief=tkinter.GROOVE, text="0.00KB", width=10)
-        self.dataButtton.grid(column=2, row=0, ipady=1, ipadx=10) 
+        self.dataButtton.grid(column=2, row=0, ipady=3, ipadx=20) 
 
         # Show network fetching progress
 
-        self.progressBar = ttk.Progressbar(self.statusBar, orient=tkinter.HORIZONTAL, length=280, mode="indeterminate")
-        self.progressBar.grid(column=3, row=0, ipady=2.499)     
+        self.homeBar = tkinter.Button(self.statusBar, text="Home", width=15, relief=tkinter.GROOVE)
+        self.homeBar.grid(column=3, row=0, ipady=3, ipadx=20)     
 
         # Indicate the Date & Time
         self.clockImage = Image.open('icons/clock.png').resize((18, 18), resample=Image.LANCZOS)
         self.clockIcon = ImageTk.PhotoImage(self.clockImage)
 
         self.loggedInUser = tkinter.Button(self.statusBar, compound=tkinter.LEFT, image=self.clockIcon, relief=tkinter.GROOVE, text=f"{datetime.datetime.today()}")
-        self.loggedInUser.grid(column=4, row=0, ipady=1, ipadx=10)
+        self.loggedInUser.grid(column=4, row=0, ipady=3, ipadx=20)
 
         self.connectedImage = Image.open('icons/connected.png').resize((18, 18), resample=Image.LANCZOS)
         self.connectedIcon = ImageTk.PhotoImage(self.connectedImage)
 
         self.lConnectedUser = tkinter.Button(self.statusBar, compound=tkinter.LEFT, image=self.connectedIcon, relief=tkinter.GROOVE, text=f"Connected")
-        self.lConnectedUser.grid(column=5, row=0, ipady=1, ipadx=10)
+        self.lConnectedUser.grid(column=5, row=0, ipady=3, ipadx=20)
 
         self.alertImage = Image.open('icons/bell.png').resize((18, 18), resample=Image.LANCZOS)
         self.alertIcon = ImageTk.PhotoImage(self.alertImage)
 
         self.alertBtn = tkinter.Button(self.statusBar, compound=tkinter.LEFT, image=self.alertIcon, relief=tkinter.GROOVE, text=f"Notifications")
-        self.alertBtn.grid(column=6, row=0, ipady=1, ipadx=10)
+        self.alertBtn.grid(column=6, row=0, ipady=3, ipadx=20)
 
     def viewOrders(self):
         for widgets in  self.midnav.winfo_children():
@@ -888,17 +919,17 @@ class Main(tkinter.Tk):
                 self.calculator.getAmount(),
                 STAFF
             )
-            # Print Kitchen Receipt
-            self.orderQueue.printKitchenReceipt(
+
+            self.orderQueue.printCustomerReceipt(
                 BUSINESS_NAME,
                 BUSINESS_PHONE,
                 BUSINESS_LOCATION,
-                self.calculator.getAmount()
+                self.calculator.getAmount(),
+                STAFF
             )
-            #  Clear The order from the queue
-            self.clearOrders()
+                
             self.viewCustomer()
-
+            self.clearOrders()
             # Deselect AmountEntry checkbox
             if self.paymentVar.get() == 1:
                 self.cashInput.deselect()
